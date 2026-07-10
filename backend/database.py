@@ -170,6 +170,7 @@ class DecisionLog(Base):
     # Analysis result snapshot
     confidence_score: Optional[float] = Column(Float, nullable=True)
     severity: Optional[str] = Column(String(20), nullable=True)
+    resolution_suggested: Optional[str] = Column(Text, nullable=True)
 
     # Timestamp
     created_at: datetime = Column(

@@ -29,8 +29,9 @@ class Settings(BaseSettings):
     cascadeflow_enabled: bool = Field(default=True, alias="CASCADEFLOW_ENABLED")
     cascadeflow_mode: str = Field(default="observe", alias="CASCADEFLOW_MODE")
     cascadeflow_budget: float = Field(default=0.50, alias="CASCADEFLOW_BUDGET")
-    draft_model: str = Field(default="llama-3.1-8b-instant", alias="DRAFT_MODEL")
+    draft_model: str = Field(default="qwen/qwen3-32b", alias="DRAFT_MODEL")
     verifier_model: str = Field(default="llama-3.3-70b-versatile", alias="VERIFIER_MODEL")
+    compliance_model: str = Field(default="local/llama-3.1-8b", alias="COMPLIANCE_MODEL")
 
     # Server
     host: str = Field(default="0.0.0.0", alias="HOST")

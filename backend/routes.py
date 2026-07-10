@@ -19,8 +19,8 @@ from database import DecisionLog, Incident, IncidentTag, SimilarIncidentRef, get
 from memory import is_memory_available, recall_similar, retain_resolution
 from schemas import (
     AIAnalysisResult,
-    AnalyzeRequest,
-    AnalyzeResponse,
+    IncidentSubmitRequest,
+    IncidentSubmitResponse,
     DecisionLogListResponse,
     DecisionLogSchema,
     HealthResponse,
@@ -31,7 +31,6 @@ from schemas import (
     MemoryInfo,
     MessageResponse,
     RoutingInfo,
-    SaveIncidentRequest,
     UpdateIncidentRequest,
 )
 from utils import (
@@ -110,20 +109,23 @@ async def upload_log(file: UploadFile = File(...)):
 # ── AI Analysis (with Memory + cascadeflow) ──────────────────────────────────
 
 @router.post(
-    "/analyze",
-    response_model=AnalyzeResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Analyze log content with AI (memory-augmented, cost-optimized)",
+    "/incidents",
+    response_model=IncidentSubmitResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit a new incident for AI analysis (memory-augmented, cost-optimized)",
 )
-async def analyze(body: AnalyzeRequest, db: AsyncSession = Depends(get_db)):
+async def create_incident(body: IncidentSubmitRequest, db: AsyncSession = Depends(get_db)):
     """
     Halcyon's core intelligence endpoint:
     1. Check Hindsight memory for similar past incidents (fast/free path)
-    2. If strong match → return cached resolution instantly
-    3. If no match → run AI analysis via cascadeflow (drafter → verifier)
-    4. Log every decision to the audit trail
+    2. If strong match → format cached resolution instantly with cheap model
+    3. If sensitive → route to compliance model bypass cascadeflow
+    4. If no match → run AI analysis via cascadeflow (drafter → verifier)
+    5. Save incident to DB and log decision audit trail
     """
     memory_info = MemoryInfo()
+    analysis = None
+    routing_meta = None
 
     # ── Step 1: Consult Hindsight Memory ──────────────────────────────────
     memory_matches = recall_similar(body.log_content)
@@ -136,49 +138,39 @@ async def analyze(body: AnalyzeRequest, db: AsyncSession = Depends(get_db)):
         memory_info.match_score = top_match.get("score", 0)
         memory_info.match_content = top_match.get("content", "")[:500]
 
-        # If high-confidence memory match, return it as the resolution
         if memory_info.match_score >= settings.memory_match_threshold:
-            logger.info(
-                "🧠 Memory hit! Score %.2f >= threshold %.2f — returning cached resolution.",
-                memory_info.match_score,
-                settings.memory_match_threshold,
-            )
+            logger.info("🧠 Memory hit! Score %.2f >= threshold %.2f", memory_info.match_score, settings.memory_match_threshold)
+            
+            # FAST PATH: use the cheap model to format the known resolution
+            from ai import format_fast_path_resolution
+            resolution_text = top_match.get("metadata", {}).get("resolution", "")
+            if not resolution_text:
+                resolution_text = "Retrieved from past incident memory: " + top_match.get("content", "")
+            
+            analysis, routing_meta = await format_fast_path_resolution(resolution_text)
+            routing_meta.decision_trace["source"] = "hindsight_fast_path"
+            routing_meta.decision_trace["match_score"] = memory_info.match_score
 
-            # Parse the stored resolution into an AIAnalysisResult
-            analysis = _parse_memory_to_analysis(top_match)
-            routing = RoutingInfo(
-                model_used="hindsight-memory",
-                model_tier="memory",
-                cost=0.0,
-                latency_ms=0.0,
-            )
+    # ── Step 2: Run AI Analysis (if no fast-path) ───────────────────────
+    if not analysis:
+        try:
+            analysis, routing_meta = await analyze_log(body.log_content, sensitive=body.sensitive)
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
 
-            # Log the decision
-            await _save_decision_log(
-                db=db,
-                routing_meta=RoutingMetadata(
-                    model_used="hindsight-memory",
-                    model_tier="memory",
-                    cost=0.0,
-                    latency_ms=0.0,
-                    decision_trace={"source": "hindsight_memory", "match_score": memory_info.match_score},
-                ),
-                memory_info=memory_info,
-                analysis=analysis,
-            )
-
-            return AnalyzeResponse(
-                analysis=analysis,
-                routing=routing,
-                memory=memory_info,
-                resolved_from_memory=True,
-            )
-
-    # ── Step 2: Run AI Analysis (cascadeflow or direct) ──────────────────
-    try:
-        analysis, routing_meta = await analyze_log(body.log_content)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    # ── Step 3: Save the Incident to DB ──────────────────────────────────
+    incident = Incident(
+        title=body.alert_title,
+        log_content=body.log_content,
+        root_cause=analysis.root_cause,
+        severity=analysis.severity,
+        fix_suggestion=analysis.fix_suggestion,
+        summary=analysis.summary,
+        affected_components=analysis.affected_components,
+        confidence_score=analysis.confidence_score,
+    )
+    db.add(incident)
+    await db.flush()
 
     routing = RoutingInfo(
         model_used=routing_meta.model_used,
@@ -191,84 +183,24 @@ async def analyze(body: AnalyzeRequest, db: AsyncSession = Depends(get_db)):
         decision_trace=routing_meta.decision_trace,
     )
 
-    # ── Step 3: Log the decision ─────────────────────────────────────────
+    # ── Step 4: Log the decision ─────────────────────────────────────────
     await _save_decision_log(
         db=db,
         routing_meta=routing_meta,
         memory_info=memory_info,
         analysis=analysis,
+        incident_id=incident.id
     )
 
-    return AnalyzeResponse(
+    return IncidentSubmitResponse(
         analysis=analysis,
         routing=routing,
         memory=memory_info,
-        resolved_from_memory=False,
+        resolved_from_memory=routing_meta.model_tier == "fast-path",
     )
 
 
-# ── Save Incident ─────────────────────────────────────────────────────────────
-
-@router.post(
-    "/save-incident",
-    response_model=IncidentResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Save an incident with AI analysis results",
-)
-async def save_incident(
-    body: SaveIncidentRequest, db: AsyncSession = Depends(get_db)
-):
-    """
-    Persist a full incident (log + AI results) to the database.
-    Also runs similar-incident detection and saves references.
-    """
-    # 1. Find similar existing incidents
-    existing_result = await db.execute(
-        select(Incident).order_by(Incident.created_at.desc()).limit(100)
-    )
-    existing_incidents = existing_result.scalars().all()
-    similar = find_similar_incidents(body.log_content, existing_incidents)
-
-    # 2. Persist the new incident
-    incident = Incident(
-        title=body.title,
-        log_filename=body.log_filename,
-        log_content=body.log_content,
-        root_cause=body.root_cause,
-        severity=body.severity,
-        fix_suggestion=body.fix_suggestion,
-        summary=body.summary,
-        affected_components=body.affected_components,
-        confidence_score=body.confidence_score,
-    )
-    db.add(incident)
-    await db.flush()  # Get the new ID
-
-    # 3. Save tags
-    for tag_name in (body.tags or []):
-        db.add(IncidentTag(incident_id=incident.id, tag=tag_name.strip().lower()))
-
-    # 4. Save similar incident references
-    for sim in similar:
-        db.add(
-            SimilarIncidentRef(
-                incident_id=incident.id,
-                similar_to_id=sim["similar_to_id"],
-                similarity_score=sim["similarity_score"],
-                match_reason=sim["match_reason"],
-            )
-        )
-
-    await db.flush()
-
-    # Reload with relationships
-    loaded = await db.execute(
-        select(Incident)
-        .options(selectinload(Incident.similar_refs), selectinload(Incident.tags))
-        .where(Incident.id == incident.id)
-    )
-    saved = loaded.scalar_one()
-    return _build_incident_response(saved)
+# (Removed old save-incident endpoint as it's merged into POST /incidents)
 
 
 # ── History / List ────────────────────────────────────────────────────────────
@@ -376,11 +308,11 @@ async def update_incident(
 # ── Mark Solved (+ Hindsight retain) ──────────────────────────────────────────
 
 @router.post(
-    "/mark-solved",
+    "/incidents/{id}/resolve",
     response_model=IncidentResponse,
     summary="Mark an incident as solved and write resolution to memory",
 )
-async def mark_solved(body: MarkSolvedRequest, db: AsyncSession = Depends(get_db)):
+async def resolve_incident(id: int, body: MarkSolvedRequest, db: AsyncSession = Depends(get_db)):
     """
     Mark an incident as solved and record the solution.
     Also writes the resolution to Hindsight memory so Halcyon learns from it.
@@ -446,7 +378,7 @@ async def delete_incident(incident_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post(
     "/incident/{incident_id}/reanalyze",
-    response_model=AnalyzeResponse,
+    response_model=IncidentSubmitResponse,
     summary="Re-run AI analysis on an existing incident",
 )
 async def reanalyze_incident(incident_id: int, db: AsyncSession = Depends(get_db)):
@@ -489,7 +421,7 @@ async def reanalyze_incident(incident_id: int, db: AsyncSession = Depends(get_db
         decision_trace=routing_meta.decision_trace,
     )
 
-    return AnalyzeResponse(
+    return IncidentSubmitResponse(
         analysis=analysis,
         routing=routing,
         memory=MemoryInfo(),
@@ -499,7 +431,7 @@ async def reanalyze_incident(incident_id: int, db: AsyncSession = Depends(get_db
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
-@router.get("/stats", tags=["analytics"], summary="Dashboard statistics")
+@router.get("/dashboard/stats", tags=["analytics"], summary="Dashboard statistics")
 async def get_stats(db: AsyncSession = Depends(get_db)):
     """Returns aggregate stats: total, solved, by-severity counts, cost savings."""
     total = (await db.execute(select(func.count()).select_from(Incident))).scalar_one()
@@ -594,7 +526,7 @@ async def get_decisions(
 
 
 @router.get(
-    "/decisions/{incident_id}",
+    "/incidents/{incident_id}/audit",
     response_model=list[DecisionLogSchema],
     tags=["audit"],
     summary="Get decisions for a specific incident",
@@ -635,7 +567,7 @@ async def list_samples():
 
 @router.post(
     "/load-sample/{scenario}",
-    response_model=AnalyzeResponse,
+    response_model=IncidentSubmitResponse,
     tags=["demo"],
     summary="Load and analyze a sample log scenario",
 )
@@ -661,9 +593,9 @@ async def load_sample(scenario: str, db: AsyncSession = Depends(get_db)):
     with open(sample_file, "r", encoding="utf-8", errors="replace") as fh:
         log_content = fh.read()
 
-    # Run through the same analysis pipeline as /api/analyze
-    body = AnalyzeRequest(log_content=log_content)
-    return await analyze(body, db)
+    # Run through the same analysis pipeline
+    body = IncidentSubmitRequest(alert_title=scenario, log_content=log_content)
+    return await create_incident(body, db)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -763,6 +695,7 @@ async def _save_decision_log(
             decision_trace=routing_meta.decision_trace,
             confidence_score=analysis.confidence_score,
             severity=analysis.severity,
+            resolution_suggested=analysis.fix_suggestion,
         )
         db.add(log)
         await db.flush()

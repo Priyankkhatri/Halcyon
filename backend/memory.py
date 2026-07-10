@@ -60,6 +60,40 @@ async def init_memory() -> None:
     client = _get_client()
     if client is None:
         logger.info("Memory system running in DISABLED mode (no Hindsight).")
+        return
+        
+    # Seed the database from local incidents on startup
+    _seed_hindsight_from_json(client)
+
+def _seed_hindsight_from_json(client):
+    """Seed Hindsight memory with past incidents from the JSON dataset."""
+    try:
+        from data.loader import load_incidents
+        incidents = load_incidents()
+        if not incidents:
+            logger.info("No incidents found in incidents.json to seed Hindsight.")
+            return
+            
+        logger.info(f"Seeding Hindsight with {len(incidents)} incidents...")
+        for inc in incidents:
+            # We construct a rich document for the memory content
+            content = f"INCIDENT: {inc.get('alert_title', '')}\nLOGS:\n" + "\n".join(inc.get('raw_logs', []))
+            metadata = {
+                "root_cause": inc.get("root_cause", ""),
+                "resolution": inc.get("resolution", ""),
+                "service": inc.get("service", ""),
+                "tags": inc.get("tags", []),
+                "sensitive": inc.get("sensitive", False)
+            }
+            # Add to hindsight
+            client.retain(
+                bank_id=settings.hindsight_bank_id,
+                content=content,
+                metadata=metadata
+            )
+        logger.info("✅ Hindsight memory seeded successfully.")
+    except Exception as e:
+        logger.error(f"Failed to seed Hindsight from JSON: {e}")
 
 
 # ── Recall: Search Past Incidents ─────────────────────────────────────────────
@@ -159,10 +193,20 @@ def retain_resolution(
         tags=tags,
     )
 
+    # Build metadata block based on user requirements
+    metadata = {
+        "root_cause": root_cause,
+        "resolution": solution,
+        "service": affected_components[0] if affected_components else "unknown",
+        "tags": tags or [],
+        "sensitive": False  # New incidents from the UI are marked not sensitive by default for demo
+    }
+
     try:
         client.retain(
             bank_id=settings.hindsight_bank_id,
             content=memory_content,
+            metadata=metadata
         )
         logger.info(
             "✅ Hindsight retain: stored resolution for incident #%d (%s)",

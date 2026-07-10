@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field, field_validator
 
 # ── Analysis ──────────────────────────────────────────────────────────────────
 
-class AnalyzeRequest(BaseModel):
+class IncidentSubmitRequest(BaseModel):
+    alert_title: str = Field(..., min_length=1, description="Title of the alert or incident")
     log_content: str = Field(..., min_length=1, description="Raw log content to analyze")
+    sensitive: bool = Field(default=False, description="Flag for sensitive data requiring compliance model routing")
 
 
 class AIAnalysisResult(BaseModel):
@@ -43,8 +45,8 @@ class MemoryInfo(BaseModel):
     source: str = ""    # "hindsight" | "local" | ""
 
 
-class AnalyzeResponse(BaseModel):
-    """Full response from the /api/analyze endpoint, combining analysis + routing + memory."""
+class IncidentSubmitResponse(BaseModel):
+    """Full response from the /incidents endpoint, combining analysis + routing + memory."""
     analysis: AIAnalysisResult
     routing: RoutingInfo = RoutingInfo()
     memory: MemoryInfo = MemoryInfo()
@@ -158,6 +160,7 @@ class DecisionLogSchema(BaseModel):
     decision_trace: Optional[Dict[str, Any]] = None
     confidence_score: Optional[float] = None
     severity: Optional[str] = None
+    resolution_suggested: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

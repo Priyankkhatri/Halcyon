@@ -1,0 +1,680 @@
+[
+  {
+    "id": "inc-1026",
+    "timestamp": "2026-04-04T04:00:00Z",
+    "service": "image-processing",
+    "alert_title": "CPU utilization > 90% for 15m",
+    "raw_logs": [
+      "[2026-04-04 04:00:00] WARN: Image resize operation taking > 5000ms",
+      "[2026-04-04 04:00:00] WARN: Event loop blocked for 2000ms",
+      "[2026-04-04 04:00:00] ERROR: Healthcheck failed - worker unresponsive",
+      "Stack trace: at sharp.resize (worker.js:22)"
+    ],
+    "root_cause": "A malformed batch of highly compressed images caused the resizing library to enter an expensive infinite loop",
+    "resolution": "Added timeouts to the resize operations and deployed hotfix to reject malformed image headers",
+    "resolved_by": "priya",
+    "resolution_time_minutes": 55,
+    "severity": "high",
+    "tags": [
+      "cpu",
+      "performance",
+      "image-processing"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1005",
+    "timestamp": "2026-04-04T09:00:00Z",
+    "service": "checkout-service",
+    "alert_title": "p99 latency > 3000ms",
+    "raw_logs": [
+      "[2026-04-04 09:00:00] ERROR: Database connection timeout after 30000ms",
+      "[2026-04-04 09:00:00] ERROR: Connection pool exhausted (active=50, max=50)",
+      "[2026-04-04 09:00:00] WARN: Retry attempt 3/3 failed",
+      "Stack trace: at db.pool.acquire (pool.js:142)"
+    ],
+    "root_cause": "Connection pool exhausted after a deploy increased concurrent workers without raising DB_POOL_MAX",
+    "resolution": "Increased DB_POOL_MAX from 20 to 50 and restarted the connection pool",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 21,
+    "severity": "high",
+    "tags": [
+      "database",
+      "connection-pool",
+      "latency"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1023",
+    "timestamp": "2026-04-06T03:00:00Z",
+    "service": "api-gateway",
+    "alert_title": "Service availability dropped below 99%",
+    "raw_logs": [
+      "[2026-04-06 03:00:00] INFO: Starting service with config version v2.1.0",
+      "[2026-04-06 03:00:00] FATAL: Missing required environment variable STRIPE_SECRET_KEY",
+      "Stack trace: at ConfigLoader.validate (config.ts:88)",
+      "[2026-04-06 03:00:00] ERROR: Application failed to start"
+    ],
+    "root_cause": "New environment variable requirement introduced in latest release without updating the Helm chart",
+    "resolution": "Rolled back deployment to previous stable version and added missing env var to staging/prod secrets",
+    "resolved_by": "alex",
+    "resolution_time_minutes": 10,
+    "severity": "critical",
+    "tags": [
+      "deploy",
+      "config",
+      "downtime"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1014",
+    "timestamp": "2026-04-07T01:00:00Z",
+    "service": "worker-service",
+    "alert_title": "Container restart loop (OOMKilled)",
+    "raw_logs": [
+      "[2026-04-07 01:00:00] WARN: Memory usage at 95% (limit: 2Gi)",
+      "[2026-04-07 01:00:00] FATAL: Allocation failed - process out of memory",
+      "kernel: [1234.56] Out of memory: Killed process 42 (node) total-vm:2560000kB"
+    ],
+    "root_cause": "Memory leak in data parsing loop accumulating unreferenced objects over time",
+    "resolution": "Rolled back recent deploy containing the memory leak and scaled up instances temporarily",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 54,
+    "severity": "high",
+    "tags": [
+      "memory",
+      "oom",
+      "kubernetes"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1025",
+    "timestamp": "2026-04-08T13:00:00Z",
+    "service": "image-processing",
+    "alert_title": "CPU utilization > 90% for 15m",
+    "raw_logs": [
+      "[2026-04-08 13:00:00] WARN: Image resize operation taking > 5000ms",
+      "[2026-04-08 13:00:00] WARN: Event loop blocked for 2000ms",
+      "[2026-04-08 13:00:00] ERROR: Healthcheck failed - worker unresponsive",
+      "Stack trace: at sharp.resize (worker.js:22)"
+    ],
+    "root_cause": "A malformed batch of highly compressed images caused the resizing library to enter an expensive infinite loop",
+    "resolution": "Added timeouts to the resize operations and deployed hotfix to reject malformed image headers",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 74,
+    "severity": "high",
+    "tags": [
+      "cpu",
+      "performance",
+      "image-processing"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1001",
+    "timestamp": "2026-04-09T07:00:00Z",
+    "service": "checkout-service",
+    "alert_title": "p99 latency > 3000ms",
+    "raw_logs": [
+      "[2026-04-09 07:00:00] ERROR: Database connection timeout after 30000ms",
+      "[2026-04-09 07:00:00] ERROR: Connection pool exhausted (active=50, max=50)",
+      "[2026-04-09 07:00:00] WARN: Retry attempt 3/3 failed",
+      "Stack trace: at db.pool.acquire (pool.js:142)"
+    ],
+    "root_cause": "Connection pool exhausted after a deploy increased concurrent workers without raising DB_POOL_MAX",
+    "resolution": "Increased DB_POOL_MAX from 20 to 50 and restarted the connection pool",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 30,
+    "severity": "high",
+    "tags": [
+      "database",
+      "connection-pool",
+      "latency"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1013",
+    "timestamp": "2026-04-11T00:00:00Z",
+    "service": "data-pipeline",
+    "alert_title": "Container restart loop (OOMKilled)",
+    "raw_logs": [
+      "[2026-04-11 00:00:00] WARN: Memory usage at 95% (limit: 2Gi)",
+      "[2026-04-11 00:00:00] FATAL: Allocation failed - process out of memory",
+      "kernel: [1234.56] Out of memory: Killed process 42 (node) total-vm:2560000kB"
+    ],
+    "root_cause": "Memory leak in data parsing loop accumulating unreferenced objects over time",
+    "resolution": "Rolled back recent deploy containing the memory leak and scaled up instances temporarily",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 38,
+    "severity": "high",
+    "tags": [
+      "memory",
+      "oom",
+      "kubernetes"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1022",
+    "timestamp": "2026-04-14T05:00:00Z",
+    "service": "api-gateway",
+    "alert_title": "Service availability dropped below 99%",
+    "raw_logs": [
+      "[2026-04-14 05:00:00] INFO: Starting service with config version v2.1.0",
+      "[2026-04-14 05:00:00] FATAL: Missing required environment variable STRIPE_SECRET_KEY",
+      "Stack trace: at ConfigLoader.validate (config.ts:88)",
+      "[2026-04-14 05:00:00] ERROR: Application failed to start"
+    ],
+    "root_cause": "New environment variable requirement introduced in latest release without updating the Helm chart",
+    "resolution": "Rolled back deployment to previous stable version and added missing env var to staging/prod secrets",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 8,
+    "severity": "critical",
+    "tags": [
+      "deploy",
+      "config",
+      "downtime"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1009",
+    "timestamp": "2026-04-16T14:00:00Z",
+    "service": "session-service",
+    "alert_title": "High rate of 500 errors in session-service",
+    "raw_logs": [
+      "[2026-04-16 14:00:00] ERROR: Redis connection failed: ECONNREFUSED",
+      "[2026-04-16 14:00:00] ERROR: Failed to read session data for user req_id=99283",
+      "Stack trace: at RedisClient.connect (redis.js:45)"
+    ],
+    "root_cause": "Redis node underwent an unexpected restart and client did not reconnect properly",
+    "resolution": "Updated redis client config to enable auto-reconnect and restarted session-service",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 8,
+    "severity": "medium",
+    "tags": [
+      "redis",
+      "session",
+      "cache"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1015",
+    "timestamp": "2026-04-19T08:00:00Z",
+    "service": "worker-service",
+    "alert_title": "Container restart loop (OOMKilled)",
+    "raw_logs": [
+      "[2026-04-19 08:00:00] WARN: Memory usage at 95% (limit: 2Gi)",
+      "[2026-04-19 08:00:00] FATAL: Allocation failed - process out of memory",
+      "kernel: [1234.56] Out of memory: Killed process 42 (node) total-vm:2560000kB"
+    ],
+    "root_cause": "Memory leak in data parsing loop accumulating unreferenced objects over time",
+    "resolution": "Rolled back recent deploy containing the memory leak and scaled up instances temporarily",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 42,
+    "severity": "high",
+    "tags": [
+      "memory",
+      "oom",
+      "kubernetes"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1003",
+    "timestamp": "2026-04-22T06:00:00Z",
+    "service": "payments-service",
+    "alert_title": "p99 latency > 3000ms",
+    "raw_logs": [
+      "[2026-04-22 06:00:00] ERROR: Database connection timeout after 30000ms",
+      "[2026-04-22 06:00:00] ERROR: Connection pool exhausted (active=50, max=50)",
+      "[2026-04-22 06:00:00] WARN: Retry attempt 3/3 failed",
+      "Stack trace: at db.pool.acquire (pool.js:142)"
+    ],
+    "root_cause": "Connection pool exhausted after a deploy increased concurrent workers without raising DB_POOL_MAX",
+    "resolution": "Increased DB_POOL_MAX from 20 to 50 and restarted the connection pool",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 11,
+    "severity": "high",
+    "tags": [
+      "database",
+      "connection-pool",
+      "latency"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1006",
+    "timestamp": "2026-04-27T03:00:00Z",
+    "service": "session-service",
+    "alert_title": "High rate of 500 errors in session-service",
+    "raw_logs": [
+      "[2026-04-27 03:00:00] ERROR: Redis connection failed: ECONNREFUSED",
+      "[2026-04-27 03:00:00] ERROR: Failed to read session data for user req_id=99283",
+      "Stack trace: at RedisClient.connect (redis.js:45)"
+    ],
+    "root_cause": "Redis node underwent an unexpected restart and client did not reconnect properly",
+    "resolution": "Updated redis client config to enable auto-reconnect and restarted session-service",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 12,
+    "severity": "medium",
+    "tags": [
+      "redis",
+      "session",
+      "cache"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1024",
+    "timestamp": "2026-04-27T11:00:00Z",
+    "service": "image-processing",
+    "alert_title": "CPU utilization > 90% for 15m",
+    "raw_logs": [
+      "[2026-04-27 11:00:00] WARN: Image resize operation taking > 5000ms",
+      "[2026-04-27 11:00:00] WARN: Event loop blocked for 2000ms",
+      "[2026-04-27 11:00:00] ERROR: Healthcheck failed - worker unresponsive",
+      "Stack trace: at sharp.resize (worker.js:22)"
+    ],
+    "root_cause": "A malformed batch of highly compressed images caused the resizing library to enter an expensive infinite loop",
+    "resolution": "Added timeouts to the resize operations and deployed hotfix to reject malformed image headers",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 48,
+    "severity": "high",
+    "tags": [
+      "cpu",
+      "performance",
+      "image-processing"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1017",
+    "timestamp": "2026-04-30T02:00:00Z",
+    "service": "data-pipeline",
+    "alert_title": "Container restart loop (OOMKilled)",
+    "raw_logs": [
+      "[2026-04-30 02:00:00] WARN: Memory usage at 95% (limit: 2Gi)",
+      "[2026-04-30 02:00:00] FATAL: Allocation failed - process out of memory",
+      "kernel: [1234.56] Out of memory: Killed process 42 (node) total-vm:2560000kB"
+    ],
+    "root_cause": "Memory leak in data parsing loop accumulating unreferenced objects over time",
+    "resolution": "Rolled back recent deploy containing the memory leak and scaled up instances temporarily",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 41,
+    "severity": "high",
+    "tags": [
+      "memory",
+      "oom",
+      "kubernetes"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1021",
+    "timestamp": "2026-05-09T09:00:00Z",
+    "service": "frontend",
+    "alert_title": "Service availability dropped below 99%",
+    "raw_logs": [
+      "[2026-05-09 09:00:00] INFO: Starting service with config version v2.1.0",
+      "[2026-05-09 09:00:00] FATAL: Missing required environment variable STRIPE_SECRET_KEY",
+      "Stack trace: at ConfigLoader.validate (config.ts:88)",
+      "[2026-05-09 09:00:00] ERROR: Application failed to start"
+    ],
+    "root_cause": "New environment variable requirement introduced in latest release without updating the Helm chart",
+    "resolution": "Rolled back deployment to previous stable version and added missing env var to staging/prod secrets",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 5,
+    "severity": "critical",
+    "tags": [
+      "deploy",
+      "config",
+      "downtime"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1016",
+    "timestamp": "2026-05-14T04:00:00Z",
+    "service": "worker-service",
+    "alert_title": "Container restart loop (OOMKilled)",
+    "raw_logs": [
+      "[2026-05-14 04:00:00] WARN: Memory usage at 95% (limit: 2Gi)",
+      "[2026-05-14 04:00:00] FATAL: Allocation failed - process out of memory",
+      "kernel: [1234.56] Out of memory: Killed process 42 (node) total-vm:2560000kB"
+    ],
+    "root_cause": "Memory leak in data parsing loop accumulating unreferenced objects over time",
+    "resolution": "Rolled back recent deploy containing the memory leak and scaled up instances temporarily",
+    "resolved_by": "priya",
+    "resolution_time_minutes": 44,
+    "severity": "high",
+    "tags": [
+      "memory",
+      "oom",
+      "kubernetes"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1029",
+    "timestamp": "2026-05-18T05:00:00Z",
+    "service": "image-processing",
+    "alert_title": "CPU utilization > 90% for 15m",
+    "raw_logs": [
+      "[2026-05-18 05:00:00] WARN: Image resize operation taking > 5000ms",
+      "[2026-05-18 05:00:00] WARN: Event loop blocked for 2000ms",
+      "[2026-05-18 05:00:00] ERROR: Healthcheck failed - worker unresponsive",
+      "Stack trace: at sharp.resize (worker.js:22)"
+    ],
+    "root_cause": "A malformed batch of highly compressed images caused the resizing library to enter an expensive infinite loop",
+    "resolution": "Added timeouts to the resize operations and deployed hotfix to reject malformed image headers",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 59,
+    "severity": "high",
+    "tags": [
+      "cpu",
+      "performance",
+      "image-processing"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1004",
+    "timestamp": "2026-05-19T22:00:00Z",
+    "service": "checkout-service",
+    "alert_title": "p99 latency > 3000ms",
+    "raw_logs": [
+      "[2026-05-19 22:00:00] ERROR: Database connection timeout after 30000ms",
+      "[2026-05-19 22:00:00] ERROR: Connection pool exhausted (active=50, max=50)",
+      "[2026-05-19 22:00:00] WARN: Retry attempt 3/3 failed",
+      "Stack trace: at db.pool.acquire (pool.js:142)"
+    ],
+    "root_cause": "Connection pool exhausted after a deploy increased concurrent workers without raising DB_POOL_MAX",
+    "resolution": "Increased DB_POOL_MAX from 20 to 50 and restarted the connection pool",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 23,
+    "severity": "high",
+    "tags": [
+      "database",
+      "connection-pool",
+      "latency"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1027",
+    "timestamp": "2026-05-22T05:00:00Z",
+    "service": "image-processing",
+    "alert_title": "CPU utilization > 90% for 15m",
+    "raw_logs": [
+      "[2026-05-22 05:00:00] WARN: Image resize operation taking > 5000ms",
+      "[2026-05-22 05:00:00] WARN: Event loop blocked for 2000ms",
+      "[2026-05-22 05:00:00] ERROR: Healthcheck failed - worker unresponsive",
+      "Stack trace: at sharp.resize (worker.js:22)"
+    ],
+    "root_cause": "A malformed batch of highly compressed images caused the resizing library to enter an expensive infinite loop",
+    "resolution": "Added timeouts to the resize operations and deployed hotfix to reject malformed image headers",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 54,
+    "severity": "high",
+    "tags": [
+      "cpu",
+      "performance",
+      "image-processing"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1010",
+    "timestamp": "2026-05-23T13:00:00Z",
+    "service": "session-service",
+    "alert_title": "High rate of 500 errors in session-service",
+    "raw_logs": [
+      "[2026-05-23 13:00:00] ERROR: Redis connection failed: ECONNREFUSED",
+      "[2026-05-23 13:00:00] ERROR: Failed to read session data for user req_id=99283",
+      "Stack trace: at RedisClient.connect (redis.js:45)"
+    ],
+    "root_cause": "Redis node underwent an unexpected restart and client did not reconnect properly",
+    "resolution": "Updated redis client config to enable auto-reconnect and restarted session-service",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 12,
+    "severity": "medium",
+    "tags": [
+      "redis",
+      "session",
+      "cache"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1008",
+    "timestamp": "2026-05-24T10:00:00Z",
+    "service": "session-service",
+    "alert_title": "High rate of 500 errors in session-service",
+    "raw_logs": [
+      "[2026-05-24 10:00:00] ERROR: Redis connection failed: ECONNREFUSED",
+      "[2026-05-24 10:00:00] ERROR: Failed to read session data for user req_id=99283",
+      "Stack trace: at RedisClient.connect (redis.js:45)"
+    ],
+    "root_cause": "Redis node underwent an unexpected restart and client did not reconnect properly",
+    "resolution": "Updated redis client config to enable auto-reconnect and restarted session-service",
+    "resolved_by": "alex",
+    "resolution_time_minutes": 8,
+    "severity": "medium",
+    "tags": [
+      "redis",
+      "session",
+      "cache"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1000",
+    "timestamp": "2026-05-24T17:00:00Z",
+    "service": "checkout-service",
+    "alert_title": "p99 latency > 3000ms",
+    "raw_logs": [
+      "[2026-05-24 17:00:00] ERROR: Database connection timeout after 30000ms",
+      "[2026-05-24 17:00:00] ERROR: Connection pool exhausted (active=50, max=50)",
+      "[2026-05-24 17:00:00] WARN: Retry attempt 3/3 failed",
+      "Stack trace: at db.pool.acquire (pool.js:142)"
+    ],
+    "root_cause": "Connection pool exhausted after a deploy increased concurrent workers without raising DB_POOL_MAX",
+    "resolution": "Increased DB_POOL_MAX from 20 to 50 and restarted the connection pool",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 10,
+    "severity": "high",
+    "tags": [
+      "database",
+      "connection-pool",
+      "latency"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1002",
+    "timestamp": "2026-05-24T17:00:00Z",
+    "service": "payments-service",
+    "alert_title": "p99 latency > 3000ms",
+    "raw_logs": [
+      "[2026-05-24 17:00:00] ERROR: Database connection timeout after 30000ms",
+      "[2026-05-24 17:00:00] ERROR: Connection pool exhausted (active=50, max=50)",
+      "[2026-05-24 17:00:00] WARN: Retry attempt 3/3 failed",
+      "Stack trace: at db.pool.acquire (pool.js:142)"
+    ],
+    "root_cause": "Connection pool exhausted after a deploy increased concurrent workers without raising DB_POOL_MAX",
+    "resolution": "Increased DB_POOL_MAX from 20 to 50 and restarted the connection pool",
+    "resolved_by": "jordan",
+    "resolution_time_minutes": 13,
+    "severity": "high",
+    "tags": [
+      "database",
+      "connection-pool",
+      "latency"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1028",
+    "timestamp": "2026-06-01T11:00:00Z",
+    "service": "image-processing",
+    "alert_title": "CPU utilization > 90% for 15m",
+    "raw_logs": [
+      "[2026-06-01 11:00:00] WARN: Image resize operation taking > 5000ms",
+      "[2026-06-01 11:00:00] WARN: Event loop blocked for 2000ms",
+      "[2026-06-01 11:00:00] ERROR: Healthcheck failed - worker unresponsive",
+      "Stack trace: at sharp.resize (worker.js:22)"
+    ],
+    "root_cause": "A malformed batch of highly compressed images caused the resizing library to enter an expensive infinite loop",
+    "resolution": "Added timeouts to the resize operations and deployed hotfix to reject malformed image headers",
+    "resolved_by": "taylor",
+    "resolution_time_minutes": 89,
+    "severity": "high",
+    "tags": [
+      "cpu",
+      "performance",
+      "image-processing"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1007",
+    "timestamp": "2026-06-06T01:00:00Z",
+    "service": "session-service",
+    "alert_title": "High rate of 500 errors in session-service",
+    "raw_logs": [
+      "[2026-06-06 01:00:00] ERROR: Redis connection failed: ECONNREFUSED",
+      "[2026-06-06 01:00:00] ERROR: Failed to read session data for user req_id=99283",
+      "Stack trace: at RedisClient.connect (redis.js:45)"
+    ],
+    "root_cause": "Redis node underwent an unexpected restart and client did not reconnect properly",
+    "resolution": "Updated redis client config to enable auto-reconnect and restarted session-service",
+    "resolved_by": "alex",
+    "resolution_time_minutes": 7,
+    "severity": "medium",
+    "tags": [
+      "redis",
+      "session",
+      "cache"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1020",
+    "timestamp": "2026-06-06T21:00:00Z",
+    "service": "frontend",
+    "alert_title": "Service availability dropped below 99%",
+    "raw_logs": [
+      "[2026-06-06 21:00:00] INFO: Starting service with config version v2.1.0",
+      "[2026-06-06 21:00:00] FATAL: Missing required environment variable STRIPE_SECRET_KEY",
+      "Stack trace: at ConfigLoader.validate (config.ts:88)",
+      "[2026-06-06 21:00:00] ERROR: Application failed to start"
+    ],
+    "root_cause": "New environment variable requirement introduced in latest release without updating the Helm chart",
+    "resolution": "Rolled back deployment to previous stable version and added missing env var to staging/prod secrets",
+    "resolved_by": "priya",
+    "resolution_time_minutes": 8,
+    "severity": "critical",
+    "tags": [
+      "deploy",
+      "config",
+      "downtime"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1011",
+    "timestamp": "2026-06-07T13:00:00Z",
+    "service": "session-service",
+    "alert_title": "High rate of 500 errors in session-service",
+    "raw_logs": [
+      "[2026-06-07 13:00:00] ERROR: Redis connection failed: ECONNREFUSED",
+      "[2026-06-07 13:00:00] ERROR: Failed to read session data for user req_id=99283",
+      "Stack trace: at RedisClient.connect (redis.js:45)"
+    ],
+    "root_cause": "Redis node underwent an unexpected restart and client did not reconnect properly",
+    "resolution": "Updated redis client config to enable auto-reconnect and restarted session-service",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 14,
+    "severity": "medium",
+    "tags": [
+      "redis",
+      "session",
+      "cache"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1012",
+    "timestamp": "2026-06-09T12:00:00Z",
+    "service": "data-pipeline",
+    "alert_title": "Container restart loop (OOMKilled)",
+    "raw_logs": [
+      "[2026-06-09 12:00:00] WARN: Memory usage at 95% (limit: 2Gi)",
+      "[2026-06-09 12:00:00] FATAL: Allocation failed - process out of memory",
+      "kernel: [1234.56] Out of memory: Killed process 42 (node) total-vm:2560000kB"
+    ],
+    "root_cause": "Memory leak in data parsing loop accumulating unreferenced objects over time",
+    "resolution": "Rolled back recent deploy containing the memory leak and scaled up instances temporarily",
+    "resolved_by": "alex",
+    "resolution_time_minutes": 56,
+    "severity": "high",
+    "tags": [
+      "memory",
+      "oom",
+      "kubernetes"
+    ],
+    "sensitive": false
+  },
+  {
+    "id": "inc-1019",
+    "timestamp": "2026-06-12T07:00:00Z",
+    "service": "frontend",
+    "alert_title": "Service availability dropped below 99%",
+    "raw_logs": [
+      "[2026-06-12 07:00:00] INFO: Starting service with config version v2.1.0",
+      "[2026-06-12 07:00:00] FATAL: Missing required environment variable STRIPE_SECRET_KEY",
+      "Stack trace: at ConfigLoader.validate (config.ts:88)",
+      "[2026-06-12 07:00:00] ERROR: Application failed to start"
+    ],
+    "root_cause": "New environment variable requirement introduced in latest release without updating the Helm chart",
+    "resolution": "Rolled back deployment to previous stable version and added missing env var to staging/prod secrets",
+    "resolved_by": "alex",
+    "resolution_time_minutes": 5,
+    "severity": "critical",
+    "tags": [
+      "deploy",
+      "config",
+      "downtime"
+    ],
+    "sensitive": true
+  },
+  {
+    "id": "inc-1018",
+    "timestamp": "2026-06-13T10:00:00Z",
+    "service": "frontend",
+    "alert_title": "Service availability dropped below 99%",
+    "raw_logs": [
+      "[2026-06-13 10:00:00] INFO: Starting service with config version v2.1.0",
+      "[2026-06-13 10:00:00] FATAL: Missing required environment variable STRIPE_SECRET_KEY",
+      "Stack trace: at ConfigLoader.validate (config.ts:88)",
+      "[2026-06-13 10:00:00] ERROR: Application failed to start"
+    ],
+    "root_cause": "New environment variable requirement introduced in latest release without updating the Helm chart",
+    "resolution": "Rolled back deployment to previous stable version and added missing env var to staging/prod secrets",
+    "resolved_by": "sahil",
+    "resolution_time_minutes": 8,
+    "severity": "critical",
+    "tags": [
+      "deploy",
+      "config",
+      "downtime"
+    ],
+    "sensitive": true
+  }
+]

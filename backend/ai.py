@@ -342,11 +342,16 @@ async def _analyze_with_cascade(log_content: str) -> tuple[AIAnalysisResult, Rou
 
 # ── Direct Groq Analysis Path ────────────────────────────────────────────────
 
-async def _analyze_with_groq(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
-    """Run analysis directly through the Groq SDK (fallback path)."""
+async def _analyze_with_groq(
+    log_content: str, 
+    model: str = None, 
+    model_tier: str = "direct"
+) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """Run analysis directly through the Groq SDK (fallback path or specific model)."""
+    model_name = model or settings.verifier_model
     metadata = RoutingMetadata(
-        model_used=settings.verifier_model,
-        model_tier="direct",
+        model_used=model_name,
+        model_tier=model_tier,
         cascadeflow_used=False,
     )
     prompt = _build_prompt(log_content)
@@ -355,7 +360,7 @@ async def _analyze_with_groq(log_content: str) -> tuple[AIAnalysisResult, Routin
     try:
         response = await asyncio.to_thread(
             _groq_client.chat.completions.create,
-            model=settings.verifier_model,
+            model=model_name,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
@@ -374,9 +379,9 @@ async def _analyze_with_groq(log_content: str) -> tuple[AIAnalysisResult, Routin
             metadata.cost = total_tokens * 0.00000059  # rough llama-3.3-70b rate
 
         metadata.decision_trace = {
-            "model_used": settings.verifier_model,
-            "fallback": True,
-            "reason": "cascadeflow unavailable or disabled",
+            "model_used": model_name,
+            "fallback": model_tier == "direct",
+            "reason": "Direct Groq call",
             "latency_ms": metadata.latency_ms,
             "cost": metadata.cost,
         }
@@ -386,7 +391,7 @@ async def _analyze_with_groq(log_content: str) -> tuple[AIAnalysisResult, Routin
 
         logger.info(
             "Direct Groq analysis complete: model=%s, cost=$%.6f, latency=%.0fms",
-            settings.verifier_model,
+            model_name,
             metadata.cost,
             metadata.latency_ms,
         )
@@ -397,9 +402,30 @@ async def _analyze_with_groq(log_content: str) -> tuple[AIAnalysisResult, Routin
         raise RuntimeError(f"AI analysis failed: {exc}") from exc
 
 
+# ── Compliance & Fast-Path ──────────────────────────────────────────────────
+
+async def _analyze_with_compliance_model(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """Force routing to the local/compliance model for sensitive data."""
+    logger.warning("Sensitive data detected. Routing to COMPLIANCE_MODEL.")
+    return await _analyze_with_groq(
+        log_content, 
+        model=settings.compliance_model, 
+        model_tier="compliance"
+    )
+
+async def format_fast_path_resolution(memory_resolution: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """Format a known Hindsight memory resolution into structured JSON using the cheap model."""
+    logger.info("Fast path triggered: formatting memory resolution with cheap model.")
+    prompt = f"Format the following incident resolution into the required JSON schema:\n\n{memory_resolution}"
+    return await _analyze_with_groq(
+        prompt, 
+        model=settings.draft_model, 
+        model_tier="fast-path"
+    )
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
-async def analyze_log(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+async def analyze_log(log_content: str, sensitive: bool = False) -> tuple[AIAnalysisResult, RoutingMetadata]:
     """
     Analyze log content using cascadeflow-routed models.
 
@@ -407,11 +433,16 @@ async def analyze_log(log_content: str) -> tuple[AIAnalysisResult, RoutingMetada
         (AIAnalysisResult, RoutingMetadata) — analysis results + routing audit info.
 
     Execution priority:
-        1. Check predefined known incidents (instant, free)
-        2. If cascadeflow is available → use CascadeAgent (drafter → verifier)
-        3. If cascadeflow unavailable → direct Groq SDK call
-        4. If no API key → mock analysis
+        1. Check sensitive flag -> route to local/compliance model.
+        2. Check predefined known incidents (instant, free)
+        3. If cascadeflow is available → use CascadeAgent (drafter → verifier)
+        4. If cascadeflow unavailable → direct Groq SDK call
+        5. If no API key → mock analysis
     """
+    # 0. Compliance Gate
+    if sensitive:
+        return await _analyze_with_compliance_model(log_content)
+
     # 1. Known incident patterns (instant match, no cost)
     known_info = _match_known_incidents(log_content)
     if known_info:
