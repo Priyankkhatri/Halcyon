@@ -4,6 +4,7 @@ import { Sun, Moon, Activity } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { FloatingDock } from './FloatingDock';
 import Waveform from '../Waveform';
+import logo from '../../assets/logo.png';
 
 export default function AppShell({ children, systemState }) {
   const [isDark, setIsDark] = useState(false);
@@ -71,10 +72,8 @@ export default function AppShell({ children, systemState }) {
           </div>
 
           {/* Mobile Title / Logo */}
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-              <Activity className="w-3.5 h-3.5 text-primary animate-pulse" />
-            </div>
+          <div className="flex items-center gap-2.5 md:hidden">
+            <img src={logo} alt="Halcyon Logo" className="w-7 h-7 rounded-lg object-cover border border-border-light/40" />
             <span className="font-serif text-lg font-bold tracking-tight text-text-primary">Halcyon</span>
           </div>
 

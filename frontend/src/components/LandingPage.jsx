@@ -4,6 +4,7 @@ import Waveform from './Waveform';
 import { Activity, ShieldCheck, Cpu, ArrowRight, Zap } from 'lucide-react';
 import { Button } from './ui/Button';
 import Card from './ui/Card';
+import logo from '../assets/logo.png';
 
 export default function LandingPage({ onEnterApp }) {
   const [heroState, setHeroState] = useState('chaotic');
@@ -74,10 +75,8 @@ export default function LandingPage({ onEnterApp }) {
 
       {/* Top Navigation */}
       <header className="fixed top-0 left-0 right-0 h-20 bg-background/80 backdrop-blur-md z-40 border-b border-border-light/40 px-4 sm:px-6 lg:px-12 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-            <Activity className="w-4 h-4 text-primary" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="Halcyon Logo" className="w-8 h-8 rounded-lg object-cover border border-border-light/40" />
           <span className="font-serif text-xl sm:text-2xl font-semibold tracking-tight text-text-primary">Halcyon</span>
         </div>
 

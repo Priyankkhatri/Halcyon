@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useRoute } from 'wouter';
 import { motion } from 'framer-motion';
 import { Activity, Cpu, FileText, Shield } from 'lucide-react';
+import logo from '../../assets/logo.png';
 
 export const Sidebar = () => {
   const navItems = [
@@ -15,9 +16,7 @@ export const Sidebar = () => {
       <div className="flex-1 flex flex-col">
         {/* Sidebar Logo Branding */}
         <div className="h-20 px-6 border-b border-border-light flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-            <Activity className="w-4 h-4 text-primary animate-pulse" />
-          </div>
+          <img src={logo} alt="Halcyon Logo" className="w-8 h-8 rounded-lg object-cover border border-border-light/40" />
           <div>
             <span className="font-serif text-xl font-bold tracking-tight text-text-primary">Halcyon</span>
             <div className="text-[9px] font-mono font-bold tracking-widest text-primary/80 uppercase">NOC CONTROL PANEL</div>
