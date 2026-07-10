@@ -267,7 +267,7 @@ To inspect the database directly:
 ```bash
 # Using sqlite3 CLI
 sqlite3 halcyon.db
-
+    
 sqlite> .tables
 decision_logs  incident_tags  incidents  similar_incident_refs
 
