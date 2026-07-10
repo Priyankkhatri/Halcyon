@@ -6,6 +6,7 @@ import StatusPill from './ui/StatusPill';
 import Waveform from './Waveform';
 import { Button } from './ui/Button';
 import { useApp } from '../context/AppContext';
+import TrustMeter from './ui/TrustMeter';
 
 export default function Dashboard({ setGlobalState }) {
   const { t, hasLimitReached, incrementLimit } = useApp();
@@ -16,6 +17,7 @@ export default function Dashboard({ setGlobalState }) {
   const [samples, setSamples] = useState([]);
   const [showSimModal, setShowSimModal] = useState(false);
   const [sensitive, setSensitive] = useState(false);
+  const [stats, setStats] = useState(null);
 
   const fetchIncidents = async () => {
     try {
@@ -32,6 +34,15 @@ export default function Dashboard({ setGlobalState }) {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const data = await api.getStats();
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchSamples = async () => {
     try {
       const data = await api.listSamples();
@@ -43,6 +54,7 @@ export default function Dashboard({ setGlobalState }) {
 
   useEffect(() => {
     fetchIncidents();
+    fetchStats();
     fetchSamples();
   }, []);
 
@@ -61,6 +73,7 @@ export default function Dashboard({ setGlobalState }) {
       await api.loadSample(scenarioName);
       incrementLimit();
       await fetchIncidents();
+      await fetchStats();
     } catch (err) {
       console.error(err);
       setGlobalState('calm');
@@ -96,6 +109,7 @@ export default function Dashboard({ setGlobalState }) {
         });
         incrementLimit();
         await fetchIncidents();
+        await fetchStats();
       } catch (err) {
         console.error("Failed to submit custom log:", err);
         setGlobalState('calm');
@@ -127,6 +141,40 @@ export default function Dashboard({ setGlobalState }) {
           {simulating ? t('dashboard.runningAnalysis') : t('dashboard.simulateBtn')}
         </Button>
       </div>
+
+      {/* Dynamic Saving Rollup Banner */}
+      {stats && stats.ai_decisions?.memory_hits > 0 && (
+        <div className="mb-8 bg-gradient-to-r from-accent-warm/15 via-[#2EC4B6]/10 to-transparent border border-border-light p-4 sm:p-5 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
+          <div className="flex items-center gap-3">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2EC4B6] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-[#2EC4B6]"></span>
+            </span>
+            <div>
+              <h4 className="font-serif text-base text-text-primary font-bold">Halcyon Cognitive Performance</h4>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                Cognitive auto-routing and Hindsight memory matching bypasses manual resolution stages.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4 sm:gap-6 font-mono shrink-0">
+            <div className="text-center sm:text-right border-r border-border-light pr-4 sm:pr-6">
+              <span className="text-[9px] uppercase tracking-wider text-text-muted block">Total Saved</span>
+              <span className="text-lg font-bold text-[#2EC4B6]">
+                ${(stats.ai_decisions.memory_hits * 0.045).toFixed(2)}
+              </span>
+            </div>
+            <div className="text-center sm:text-right">
+              <span className="text-[9px] uppercase tracking-wider text-text-muted block">MTTR Bypassed</span>
+              <span className="text-lg font-bold text-[#2EC4B6]">
+                {stats.ai_decisions.memory_hits * 18 >= 60
+                  ? `${((stats.ai_decisions.memory_hits * 18) / 60).toFixed(1)} hours`
+                  : `${stats.ai_decisions.memory_hits * 18} mins`}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSimModal && (
         <div className="fixed inset-0 bg-[#0A0E1A]/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -226,12 +274,17 @@ export default function Dashboard({ setGlobalState }) {
                       </div>
                     </div>
                   </div>
-                  <div className="self-end sm:self-auto flex-shrink-0">
+                  <div className="self-end sm:self-auto flex-shrink-0 flex flex-col items-end gap-2.5">
                     {inc.is_solved ? (
                       <StatusPill status="memory-match" confidence={Math.round((inc.confidence_score || 0) * 100)} />
                     ) : (
                       <StatusPill status="escalated" />
                     )}
+                    <TrustMeter
+                      confidence={Math.round((inc.confidence_score || 0) * 100)}
+                      matchCount={inc.similar_incidents?.length || 0}
+                      state={(inc.similar_incidents?.length > 0) ? 'memory-match' : 'escalated'}
+                    />
                   </div>
                 </Card>
               </a>
