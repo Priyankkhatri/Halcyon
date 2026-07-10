@@ -139,7 +139,7 @@ async def seed_demo_data() -> int:
         created: list[tuple[Incident, dict]] = []
         family_first_ids: dict[str, int] = {}
 
-        for index, src in enumerate(sorted(incidents, key=_parse_timestamp)):
+        for index, src in enumerate(sorted(incidents, key=lambda x: _parse_timestamp(x["timestamp"]))):
             timestamp = _parse_timestamp(src["timestamp"])
             severity = (src.get("severity") or "MEDIUM").upper()
             tags = src.get("tags", [])
