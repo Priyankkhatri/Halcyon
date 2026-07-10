@@ -37,9 +37,9 @@ class RoutingMetadata:
 # ── Client Setup ──────────────────────────────────────────────────────────────
 
 def _configure_groq_client() -> Optional[Groq]:
-    """Configure and return the Groq client, or None if no key is set."""
+    """Configure and return the Groq client, or None if no key is set or is a placeholder."""
     api_key = settings.groq_api_key
-    if not api_key:
+    if not api_key or api_key == "your_groq_api_key_here":
         logger.warning("No GROQ_API_KEY set — AI analysis will return mock data.")
         return None
     return Groq(api_key=api_key)
@@ -60,7 +60,7 @@ def _configure_cascade():
         logger.info("cascadeflow is disabled (CASCADEFLOW_ENABLED=false).")
         return
 
-    if not settings.groq_api_key:
+    if not settings.groq_api_key or settings.groq_api_key == "your_groq_api_key_here":
         logger.info("cascadeflow skipped — no GROQ_API_KEY for model calls.")
         return
 

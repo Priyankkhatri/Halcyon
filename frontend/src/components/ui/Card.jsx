@@ -1,14 +1,22 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import React from 'react';
+import { motion } from 'framer-motion';
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
-
-export default function Card({ children, className }) {
+export default function Card({
+  children,
+  className = '',
+  animateHover = true,
+  ...props
+}) {
   return (
-    <div className={cn("bg-halcyon-surface border border-halcyon-border/80 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300", className)}>
+    <motion.div
+      whileHover={animateHover ? { y: -3, scale: 1.005 } : undefined}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className={`bg-surface rounded-3xl p-8 border border-border-light shadow-antigravity transition-all duration-300 ${
+        animateHover ? 'hover:shadow-antigravity-hover' : ''
+      } ${className}`}
+      {...props}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }

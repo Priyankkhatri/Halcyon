@@ -4,28 +4,37 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        halcyon: {
-          bg: '#F9FAFB', // Soft off-white
-          surface: '#FFFFFF', // Pure white
-          'surface-raised': '#F3F4F6', // Subtle tint for hover/active
-          teal: '#0D9488', // Deepened kingfisher teal
-          amber: '#EA580C', // Vibrant burnt orange/amber
-          text: '#111827', // Deep slate
-          'text-muted': '#6B7280', // Cool gray
-          border: '#E5E7EB' // Soft clean divider
-        }
+        background: 'var(--background)',
+        surface: 'var(--surface)',
+        primary: {
+          DEFAULT: '#E8935B', // kingfisher-amber
+          hover: '#D7824A'
+        },
+        secondary: {
+          DEFAULT: '#A6B4C4',
+          hover: '#95A3B3'
+        },
+        'accent-warm': {
+          DEFAULT: '#2EC4B6', // kingfisher-teal
+          hover: '#1FB3A5'
+        },
+        'text-primary': 'var(--text-primary)',
+        'text-muted': 'var(--text-muted)',
+        'border-light': 'var(--border-light)'
       },
       fontFamily: {
-        display: ['Space Grotesk', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        serif: ["Space Grotesk", "sans-serif"], // Map font-serif to Space Grotesk for headings
+        sans: ["Inter", "Geist", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+        display: ["Space Grotesk", "sans-serif"]
       },
       boxShadow: {
-        'halcyon-glow-teal': '0 0 20px -5px rgba(13, 148, 136, 0.4)',
-        'halcyon-glow-amber': '0 0 20px -5px rgba(234, 88, 12, 0.4)',
+        antigravity: 'var(--shadow-val-antigravity)',
+        'antigravity-hover': 'var(--shadow-val-antigravity-hover)'
       }
     },
   },

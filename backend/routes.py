@@ -317,7 +317,7 @@ async def resolve_incident(id: int, body: MarkSolvedRequest, db: AsyncSession = 
     Mark an incident as solved and record the solution.
     Also writes the resolution to Hindsight memory so Halcyon learns from it.
     """
-    incident = await _get_incident_or_404(body.incident_id, db)
+    incident = await _get_incident_or_404(id, db)
 
     if incident.is_solved:
         raise HTTPException(
@@ -356,7 +356,7 @@ async def resolve_incident(id: int, body: MarkSolvedRequest, db: AsyncSession = 
     reloaded = await db.execute(
         select(Incident)
         .options(selectinload(Incident.similar_refs), selectinload(Incident.tags))
-        .where(Incident.id == body.incident_id)
+        .where(Incident.id == id)
     )
     return _build_incident_response(reloaded.scalar_one())
 

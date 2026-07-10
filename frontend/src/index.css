@@ -1,20 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --background: #F3F4F6;
+  --surface: #FFFFFF;
+  --text-primary: #1F2937;
+  --text-muted: #4B5563;
+  --border-light: #E2E8F0;
+  --shadow-val-antigravity: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+  --shadow-val-antigravity-hover: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  --background: #0A0E1A;
+  --surface: #12172A;
+  --text-primary: #ECEFF1;
+  --text-muted: #8A97A3;
+  --border-light: #232A45;
+  --shadow-val-antigravity: 0 10px 40px -10px rgba(0, 0, 0, 0.45);
+  --shadow-val-antigravity-hover: 0 20px 50px -12px rgba(0, 0, 0, 0.65);
+}
+
 @layer base {
-  body {
-    @apply bg-halcyon-bg text-halcyon-text font-body selection:bg-halcyon-teal/20 selection:text-halcyon-teal;
+  html, body {
+    background-color: var(--background);
+    font-family: 'Inter', sans-serif;
+    color: var(--text-muted);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text-primary);
+    font-weight: 700;
   }
 }
 
-:root {
-  --halcyon-bg: #F9FAFB;
-  --halcyon-surface: #FFFFFF;
-  --halcyon-surface-raised: #F3F4F6;
-  --halcyon-teal: #0D9488;
-  --halcyon-amber: #EA580C;
-  --halcyon-text: #111827;
-  --halcyon-text-muted: #6B7280;
-  --halcyon-border: #E5E7EB;
+/* Antigravity Glass Panel */
+.glass-panel {
+  background: rgba(18, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(35, 42, 69, 0.8);
+}
+
+.dark .glass-panel {
+  background: rgba(18, 23, 42, 0.75);
+  border: 1px solid rgba(35, 42, 69, 0.8);
+}
+
+/* Custom shimmer pulse keyframes for upgraded skeleton loading */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-bg {
+  background: linear-gradient(90deg, 
+    rgba(140, 165, 150, 0.05) 25%, 
+    rgba(140, 165, 150, 0.15) 50%, 
+    rgba(140, 165, 150, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 2.5s infinite linear;
+}
+
+.dark .shimmer-bg {
+  background: linear-gradient(90deg, 
+    rgba(32, 36, 41, 0.6) 25%, 
+    rgba(45, 52, 60, 0.8) 50%, 
+    rgba(32, 36, 41, 0.6) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 2.5s infinite linear;
+}
+
+/* Accessibility Focus Ring styling */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
 }

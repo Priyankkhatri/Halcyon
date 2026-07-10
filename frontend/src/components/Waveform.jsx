@@ -1,14 +1,22 @@
 import { useEffect, useRef } from 'react';
 
-const DEFAULT_AMBER = '#EA580C';
-const DEFAULT_TEAL = '#0D9488';
+const DEFAULT_AMBER = '#E8935B'; // kingfisher-amber
+const DEFAULT_TEAL = '#2EC4B6';  // kingfisher-teal
+
+function hexToRgba(hex, alpha) {
+  if (!hex || !hex.startsWith('#')) return `rgba(46, 196, 182, ${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export default function Waveform({ state = 'calm', size = 'small', color }) {
   const canvasRef = useRef(null);
   
   // Size mapping
-  const width = size === 'large' ? 800 : 60;
-  const height = size === 'large' ? 120 : 20;
+  const width = size === 'large' ? 800 : size === 'medium' ? 140 : 70;
+  const height = size === 'large' ? 160 : size === 'medium' ? 48 : 24;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,11 +36,11 @@ export default function Waveform({ state = 'calm', size = 'small', color }) {
     let time = 0;
     
     // Configuration based on size
-    const baseAmpChaos = size === 'large' ? 30 : 6;
-    const baseAmpCalm = size === 'large' ? 10 : 2;
-    const noiseFactorChaos = size === 'large' ? 15 : 3;
-    const freqChaos = size === 'large' ? 0.02 : 0.15;
-    const freqCalm = size === 'large' ? 0.01 : 0.08;
+    const baseAmpChaos = size === 'large' ? 35 : size === 'medium' ? 18 : 5;
+    const baseAmpCalm = size === 'large' ? 8 : size === 'medium' ? 4 : 1.5;
+    const noiseFactorChaos = size === 'large' ? 12 : size === 'medium' ? 6 : 2.5;
+    const freqChaos = size === 'large' ? 0.015 : size === 'medium' ? 0.04 : 0.12;
+    const freqCalm = size === 'large' ? 0.008 : size === 'medium' ? 0.02 : 0.06;
     
     // State targets
     const getTargets = (s) => {
@@ -40,7 +48,7 @@ export default function Waveform({ state = 'calm', size = 'small', color }) {
       return {
         amp: isChaotic ? baseAmpChaos : baseAmpCalm,
         freq: isChaotic ? freqChaos : freqCalm,
-        speed: isChaotic ? 0.15 : 0.03,
+        speed: isChaotic ? 0.08 : 0.02,
         noise: isChaotic ? noiseFactorChaos : 0,
       };
     };
@@ -50,8 +58,8 @@ export default function Waveform({ state = 'calm', size = 'small', color }) {
     const render = () => {
       const target = getTargets(state);
       
-      // Lerp towards targets (0.03 lerp factor gives a smooth ~1.5-2s ease-out at 60fps)
-      const lerp = 0.03;
+      // Lerp towards targets
+      const lerp = 0.025;
       current.amp += (target.amp - current.amp) * lerp;
       current.freq += (target.freq - current.freq) * lerp;
       current.speed += (target.speed - current.speed) * lerp;
@@ -64,45 +72,52 @@ export default function Waveform({ state = 'calm', size = 'small', color }) {
       // Determine stroke color
       let strokeColor = color;
       if (!strokeColor) {
-        // If state is calm but we are still transitioning down, we might want to fade color.
-        // For simplicity and crispness, snap the color immediately or based on state prop.
         strokeColor = state === 'chaotic' ? DEFAULT_AMBER : DEFAULT_TEAL;
       }
 
       ctx.clearRect(0, 0, width, height);
-      ctx.beginPath();
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = size === 'large' ? 2.5 : 1.5;
-      ctx.lineJoin = 'round';
-      
       const midY = height / 2;
       
-      for (let x = 0; x <= width; x += 1) {
-        // Base sine wave
-        let y = midY + Math.sin(x * current.freq + time) * current.amp;
+      // Draw layers of waves for a richer, premium feel
+      const waves = size === 'large' ? [
+        { ampMult: 1.0, freqMult: 1.0, phaseSpeed: 1.0, opacity: 0.85, width: 3 },
+        { ampMult: 0.65, freqMult: 1.4, phaseSpeed: -0.7, opacity: 0.45, width: 1.8 },
+        { ampMult: 0.35, freqMult: 0.7, phaseSpeed: 1.5, opacity: 0.25, width: 1.2 }
+      ] : size === 'medium' ? [
+        { ampMult: 1.0, freqMult: 1.0, phaseSpeed: 1.0, opacity: 0.9, width: 2.2 },
+        { ampMult: 0.6, freqMult: 1.3, phaseSpeed: -0.8, opacity: 0.5, width: 1.2 },
+        { ampMult: 0.3, freqMult: 0.7, phaseSpeed: 1.4, opacity: 0.3, width: 0.8 }
+      ] : [
+        { ampMult: 1.0, freqMult: 1.0, phaseSpeed: 1.0, opacity: 0.9, width: 1.8 },
+        { ampMult: 0.6, freqMult: 1.5, phaseSpeed: -0.8, opacity: 0.4, width: 1.0 }
+      ];
+
+      waves.forEach((wave) => {
+        ctx.beginPath();
+        ctx.strokeStyle = hexToRgba(strokeColor, wave.opacity);
+        ctx.lineWidth = wave.width;
+        ctx.lineJoin = 'round';
         
-        // Add pseudo-random noise layers for chaotic state
-        if (current.noise > 0.5 && !prefersReducedMotion) {
-            const noise1 = Math.sin(x * 0.5 + time * 2) * current.noise;
-            const noise2 = Math.cos(x * 0.2 - time * 3) * (current.noise * 0.5);
-            y += noise1 + noise2;
+        for (let x = 0; x <= width; x += 2) {
+          const phase = time * wave.phaseSpeed;
+          let y = midY + Math.sin(x * current.freq * wave.freqMult + phase) * current.amp * wave.ampMult;
+          
+          // Add pseudo-random noise layers for chaotic state
+          if (current.noise > 0.5 && !prefersReducedMotion) {
+              const noise1 = Math.sin(x * 0.4 + time * 2.5) * current.noise * wave.ampMult * 0.8;
+              const noise2 = Math.cos(x * 0.15 - time * 3) * (current.noise * 0.4) * wave.ampMult * 0.8;
+              y += noise1 + noise2;
+          }
+          
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
-        // Fallback static jaggedness for reduced motion
-        if (current.noise > 0.5 && prefersReducedMotion) {
-             const staticNoise = Math.sin(x * 0.5) * current.noise + Math.cos(x * 0.2) * (current.noise * 0.5);
-             y += staticNoise;
-        }
-        
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
+        ctx.stroke();
+      });
       
-      ctx.stroke();
-      
-      // Check if we reached the target closely enough to stop rendering if calm & reduced motion
       const dist = Math.abs(current.amp - target.amp) + Math.abs(current.noise - target.noise);
       if (prefersReducedMotion && dist < 0.1) {
-        return; // Stop animation loop if reduced motion and we arrived at target
+        return;
       }
       
       if (!prefersReducedMotion || dist >= 0.1) {
@@ -118,10 +133,17 @@ export default function Waveform({ state = 'calm', size = 'small', color }) {
   }, [state, size, width, height, color]);
   
   return (
-    <div style={{ width, height, overflow: 'hidden' }} className="flex items-center justify-center">
+    <div style={{ width, height, overflow: 'hidden' }} className="flex items-center justify-center relative">
+      {/* Soft background glow (Afterlife style) */}
+      {size === 'large' && (
+        <div 
+          className="absolute inset-0 w-full h-full blur-[80px] opacity-10 rounded-full transition-colors duration-500 pointer-events-none"
+          style={{ backgroundColor: state === 'chaotic' ? DEFAULT_AMBER : DEFAULT_TEAL }}
+        />
+      )}
       <canvas 
         ref={canvasRef} 
-        style={{ width: `${width}px`, height: `${height}px`, display: 'block' }} 
+        style={{ width: `${width}px`, height: `${height}px`, display: 'block', zIndex: 1 }} 
       />
     </div>
   );

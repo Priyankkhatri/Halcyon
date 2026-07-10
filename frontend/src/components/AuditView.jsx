@@ -4,9 +4,9 @@ import { api } from '../api';
 import Card from './ui/Card';
 
 const COLORS = {
-  memory: '#0D9488', // Teal Light Theme
-  escalated: '#EA580C', // Amber Light Theme
-  neutral: '#94A3B8' // Slate Light Theme
+  memory: '#8CA596',     // Sage Green (Afterlife accent-warm)
+  escalated: '#E29A76',  // Apricot (Afterlife primary)
+  neutral: '#A6B4C4'     // Dusty Blue (Afterlife secondary)
 };
 
 export default function AuditView() {
@@ -33,7 +33,7 @@ export default function AuditView() {
   }, []);
 
   const chartData = useMemo(() => {
-    return decisions.map((d, i) => ({
+    return decisions.map((d) => ({
       name: `INC-${d.incident_id}`,
       cost: d.cost,
       latency: d.latency_ms
@@ -50,20 +50,20 @@ export default function AuditView() {
   }, [stats]);
 
   if (loading) {
-    return <div className="animate-pulse h-64 bg-halcyon-surface-raised rounded-xl max-w-5xl mx-auto mt-8"></div>;
+    return <div className="animate-pulse h-64 bg-surface rounded-3xl max-w-5xl mx-auto mt-8 border border-border-light shadow-antigravity"></div>;
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
-      <div className="mb-10 border-b border-halcyon-border/50 pb-6">
-        <h1 className="text-4xl font-display font-extrabold tracking-tight text-halcyon-text mb-2">Audit & Cost Trail</h1>
-        <p className="text-halcyon-text-muted font-medium text-lg">Proving institutional memory reduces cost and latency over time.</p>
+    <div className="max-w-5xl mx-auto py-4">
+      <div className="mb-10 border-b border-border-light pb-6">
+        <h1 className="text-4xl font-serif text-text-primary tracking-wide mb-2">Audit & Cost Trail</h1>
+        <p className="text-text-muted font-light text-sm">Proving institutional memory reduces cost and latency over time.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
         {/* Cost Chart */}
-        <Card className="lg:col-span-2 flex flex-col shadow-lg">
-          <h3 className="font-display text-2xl font-bold tracking-tight mb-8">Cost Per Incident (Trend)</h3>
+        <Card className="lg:col-span-2 flex flex-col" animateHover={false}>
+          <h3 className="font-serif text-2xl text-text-primary tracking-wide mb-8">Cost Per Incident (Trend)</h3>
           <div className="flex-1 min-h-[280px]">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -74,24 +74,24 @@ export default function AuditView() {
                       <stop offset="95%" stopColor={COLORS.memory} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="name" stroke="#6B7280" fontSize={11} tickLine={false} axisLine={false} tickMargin={12} />
-                  <YAxis stroke="#6B7280" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val.toFixed(4)}`} tickMargin={12} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickMargin={12} />
+                  <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val.toFixed(4)}`} tickMargin={12} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', color: '#111827', fontFamily: 'monospace', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', fontFamily: 'monospace', borderRadius: '16px', boxShadow: 'var(--shadow-val-antigravity)' }}
                     itemStyle={{ color: COLORS.memory, fontWeight: 'bold' }}
                   />
                   <Area type="monotone" dataKey="cost" stroke={COLORS.memory} strokeWidth={3} fillOpacity={1} fill="url(#colorCost)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-halcyon-text-muted font-medium">No data available</div>
+              <div className="h-full flex items-center justify-center text-text-muted font-medium">No data available</div>
             )}
           </div>
         </Card>
 
         {/* Resolution Breakdown */}
-        <Card className="flex flex-col shadow-lg">
-          <h3 className="font-display text-2xl font-bold tracking-tight mb-4">Resolution Path</h3>
+        <Card className="flex flex-col animateHover" animateHover={true}>
+          <h3 className="font-serif text-2xl text-text-primary tracking-wide mb-4">Resolution Path</h3>
           <div className="flex-1 flex items-center justify-center min-h-[200px]">
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -101,18 +101,18 @@ export default function AuditView() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', fontFamily: 'monospace', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-light)', fontFamily: 'monospace', borderRadius: '16px', boxShadow: 'var(--shadow-val-antigravity)' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-halcyon-text-muted font-medium">No data</div>
+              <div className="text-text-muted font-medium">No data</div>
             )}
           </div>
-          <div className="space-y-3 mt-6 bg-halcyon-surface-raised p-4 rounded-xl">
+          <div className="space-y-3 mt-6 bg-background/50 p-4 rounded-2xl border border-border-light">
             {pieData.map(d => (
               <div key={d.name} className="flex justify-between items-center text-sm font-mono font-medium">
                 <span className="flex items-center gap-3"><div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: d.color }}></div> {d.name}</span>
-                <span className="text-halcyon-text font-bold">{d.value}</span>
+                <span className="text-text-primary font-bold">{d.value}</span>
               </div>
             ))}
           </div>
@@ -120,14 +120,14 @@ export default function AuditView() {
       </div>
 
       {/* Dense Audit Log */}
-      <Card className="overflow-hidden p-0 shadow-lg">
-        <div className="p-6 border-b border-halcyon-border/50 bg-halcyon-surface-raised/30">
-          <h3 className="font-display text-2xl font-bold tracking-tight">Decision Audit Log</h3>
+      <Card className="overflow-hidden p-0 shadow-antigravity" animateHover={false}>
+        <div className="p-6 border-b border-border-light bg-background/20">
+          <h3 className="font-serif text-2xl text-text-primary tracking-wide">Decision Audit Log</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-halcyon-surface-raised border-b border-halcyon-border text-xs uppercase tracking-widest text-halcyon-text-muted font-mono font-bold">
+              <tr className="bg-background/50 border-b border-border-light text-xs uppercase tracking-widest text-text-muted font-mono font-bold">
                 <th className="p-5 font-bold">Timestamp</th>
                 <th className="p-5 font-bold">Incident</th>
                 <th className="p-5 font-bold">Model</th>
@@ -138,22 +138,22 @@ export default function AuditView() {
             </thead>
             <tbody className="text-sm font-mono font-medium">
               {decisions.slice().reverse().map((log) => (
-                <tr key={log.id} className="border-b border-halcyon-border/30 hover:bg-halcyon-surface-raised transition-colors group">
-                  <td className="p-5 text-halcyon-text-muted group-hover:text-halcyon-text transition-colors">{new Date(log.created_at).toLocaleString()}</td>
-                  <td className="p-5 text-halcyon-text font-bold">INC-{log.incident_id?.toString().padStart(4, '0') || '----'}</td>
-                  <td className="p-5 text-halcyon-text-muted">{log.model_used}</td>
+                <tr key={log.id} className="border-b border-border-light/50 hover:bg-background/30 transition-colors group">
+                  <td className="p-5 text-text-muted group-hover:text-text-primary transition-colors">{new Date(log.created_at).toLocaleString()}</td>
+                  <td className="p-5 text-text-primary font-bold">INC-{log.incident_id?.toString().padStart(4, '0') || '----'}</td>
+                  <td className="p-5 text-text-muted">{log.model_used}</td>
                   <td className="p-5">
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold tracking-wide shadow-sm ${log.model_tier === 'fast-path' ? 'bg-halcyon-teal/10 text-halcyon-teal border border-halcyon-teal/20' : 'bg-halcyon-amber/10 text-halcyon-amber border border-halcyon-amber/20'}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide shadow-sm border ${log.model_tier === 'fast-path' ? 'bg-accent-warm/10 text-accent-warm border-accent-warm/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                       {log.model_tier}
                     </span>
                   </td>
-                  <td className="p-5 text-halcyon-text bg-halcyon-surface-raised/30">${log.cost.toFixed(5)}</td>
-                  <td className="p-5 text-halcyon-text bg-halcyon-surface-raised/30">{log.latency_ms.toFixed(0)}ms</td>
+                  <td className="p-5 text-text-primary bg-background/10">${log.cost.toFixed(5)}</td>
+                  <td className="p-5 text-text-primary bg-background/10">{log.latency_ms.toFixed(0)}ms</td>
                 </tr>
               ))}
               {decisions.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="p-10 text-center text-halcyon-text-muted font-body text-lg">No audit logs found.</td>
+                  <td colSpan="6" className="p-10 text-center text-text-muted font-sans text-lg">No audit logs found.</td>
                 </tr>
               )}
             </tbody>
