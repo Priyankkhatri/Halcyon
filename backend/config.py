@@ -15,8 +15,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # AI
+    # AI — Groq (primary LLM provider)
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+
+    # Hindsight — Agent Memory
+    hindsight_url: str = Field(default="http://localhost:8888", alias="HINDSIGHT_URL")
+    hindsight_bank_id: str = Field(default="halcyon-incidents", alias="HINDSIGHT_BANK_ID")
+    hindsight_enabled: bool = Field(default=True, alias="HINDSIGHT_ENABLED")
+    memory_match_threshold: float = Field(default=0.80, alias="MEMORY_MATCH_THRESHOLD")
+
+    # cascadeflow — Model Routing
+    cascadeflow_enabled: bool = Field(default=True, alias="CASCADEFLOW_ENABLED")
+    cascadeflow_mode: str = Field(default="observe", alias="CASCADEFLOW_MODE")
+    cascadeflow_budget: float = Field(default=0.50, alias="CASCADEFLOW_BUDGET")
+    draft_model: str = Field(default="llama-3.1-8b-instant", alias="DRAFT_MODEL")
+    verifier_model: str = Field(default="llama-3.3-70b-versatile", alias="VERIFIER_MODEL")
 
     # Server
     host: str = Field(default="0.0.0.0", alias="HOST")

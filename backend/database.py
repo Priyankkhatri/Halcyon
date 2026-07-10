@@ -134,6 +134,60 @@ class IncidentTag(Base):
     )
 
 
+class DecisionLog(Base):
+    """
+    Audit trail for every AI analysis decision.
+    Records which model was used, why, cost, latency, and whether
+    memory (Hindsight) was consulted.
+    """
+    __tablename__ = "decision_logs"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    incident_id: Optional[int] = Column(
+        Integer, ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Model routing
+    model_used: str = Column(String(100), nullable=False, default="unknown")
+    model_tier: str = Column(String(20), nullable=False, default="direct")  # drafter|verifier|direct|mock|known
+    cost: float = Column(Float, default=0.0)
+    latency_ms: float = Column(Float, default=0.0)
+
+    # Escalation
+    escalated: bool = Column(Boolean, default=False)
+    escalation_reason: Optional[str] = Column(Text, nullable=True)
+
+    # Memory (Hindsight)
+    memory_consulted: bool = Column(Boolean, default=False)
+    memory_hit: bool = Column(Boolean, default=False)
+    memory_match_score: Optional[float] = Column(Float, nullable=True)
+    memory_match_content: Optional[str] = Column(Text, nullable=True)
+
+    # cascadeflow
+    cascadeflow_used: bool = Column(Boolean, default=False)
+    decision_trace: Optional[str] = Column(JSON, nullable=True)  # Full routing trace
+
+    # Analysis result snapshot
+    confidence_score: Optional[float] = Column(Float, nullable=True)
+    severity: Optional[str] = Column(String(20), nullable=True)
+
+    # Timestamp
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationship
+    incident = relationship("Incident", backref="decision_logs")
+
+    __table_args__ = (
+        Index("ix_decision_logs_incident_id", "incident_id"),
+        Index("ix_decision_logs_created_at", "created_at"),
+        Index("ix_decision_logs_model_used", "model_used"),
+    )
+
+
 # ── Dependency ────────────────────────────────────────────────────────────────
 
 async def get_db() -> AsyncSession:

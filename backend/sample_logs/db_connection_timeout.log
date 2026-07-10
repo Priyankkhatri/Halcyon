@@ -1,0 +1,12 @@
+2025-07-10 02:14:33.001 [INFO]  postgresql-monitor  Starting health check for payment-service DB pool
+2025-07-10 02:14:33.045 [INFO]  postgresql-monitor  Connection pool usage: 72% (36/50 active connections)
+2025-07-10 02:14:33.102 [WARN]  payment-service     Slow query detected: SELECT * FROM transactions WHERE status='pending' — 4.2s
+2025-07-10 02:14:34.210 [WARN]  payment-service     Query timeout approaching: batch_reconciliation_job — 8.7s / 10s limit
+2025-07-10 02:14:35.500 [ERROR] postgresql-monitor   Connection pool usage: 95% (48/50 active connections)
+2025-07-10 02:14:35.501 [CRITICAL] payment-service   Unable to acquire database connection — pool exhausted
+2025-07-10 02:14:35.510 [ERROR] payment-service      Transaction processing failed: ConnectionPoolExhaustedError
+2025-07-10 02:14:35.520 [ERROR] payment-service      Retry attempt 1/3 failed — no connections available
+2025-07-10 02:14:36.100 [ERROR] postgresql-monitor   Connection pool usage: 100% (50/50 active connections)
+2025-07-10 02:14:36.200 [CRITICAL] payment-service   All retries exhausted. Payment processing halted.
+2025-07-10 02:14:36.300 [CRITICAL] api-gateway        Health check FAILED for payment-service — returning 503
+2025-07-10 02:14:36.400 [ERROR] notification-service  Failed to send payment confirmation emails — upstream 503

@@ -1,0 +1,11 @@
+2025-07-10 05:30:00.000 [INFO]  auth-service        Processing login request from IP 203.0.113.42
+2025-07-10 05:30:00.100 [WARN]  auth-service        Rate limit approaching for IP 203.0.113.42 — 48/50 requests in 60s
+2025-07-10 05:30:00.200 [ERROR] auth-service        JWT token validation failed: TokenExpiredError — token expired 3600s ago
+2025-07-10 05:30:00.300 [WARN]  auth-service        Multiple failed login attempts: user=admin@company.com, attempts=12/15
+2025-07-10 05:30:01.000 [ERROR] auth-service        401 Unauthorized: Invalid credentials for user admin@company.com
+2025-07-10 05:30:01.100 [WARN]  security-monitor    Brute force pattern detected: 50 failed logins from IP 203.0.113.42 in 120s
+2025-07-10 05:30:01.200 [CRITICAL] security-monitor  ALERT: Possible credential stuffing attack — 200 unique usernames attempted from single IP
+2025-07-10 05:30:01.300 [ERROR] auth-service        Account locked: admin@company.com — exceeded maximum failed attempts
+2025-07-10 05:30:01.400 [WARN]  firewall-agent      Adding IP 203.0.113.42 to temporary blocklist (duration: 1h)
+2025-07-10 05:30:01.500 [INFO]  notification-service Sending security alert to ops-team@company.com
+2025-07-10 05:30:02.000 [WARN]  auth-service        403 Forbidden: IP 203.0.113.42 is blocked

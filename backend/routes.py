@@ -1,8 +1,10 @@
 """
 Halcyon Backend — API Routes
 All /api/* endpoints wired up here.
+Integrates: Hindsight memory, cascadeflow routing, decision audit trail.
 """
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -11,17 +13,24 @@ from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ai import analyze_log
-from database import Incident, IncidentTag, SimilarIncidentRef, get_db
+from ai import analyze_log, RoutingMetadata
+from config import settings
+from database import DecisionLog, Incident, IncidentTag, SimilarIncidentRef, get_db
+from memory import is_memory_available, recall_similar, retain_resolution
 from schemas import (
     AIAnalysisResult,
     AnalyzeRequest,
+    AnalyzeResponse,
+    DecisionLogListResponse,
+    DecisionLogSchema,
     HealthResponse,
     IncidentListResponse,
     IncidentResponse,
     LogUploadResponse,
     MarkSolvedRequest,
+    MemoryInfo,
     MessageResponse,
+    RoutingInfo,
     SaveIncidentRequest,
     UpdateIncidentRequest,
 )
@@ -41,14 +50,18 @@ router = APIRouter(prefix="/api", tags=["halcyon"])
 
 @router.get("/health", response_model=HealthResponse, tags=["system"])
 async def health_check(db: AsyncSession = Depends(get_db)):
-    """Liveness check — verifies API and DB are up."""
+    """Liveness check — verifies API, DB, and memory are up."""
     try:
         await db.execute(select(func.count()).select_from(Incident))
         db_status = "ok"
     except Exception as e:
         db_status = f"error: {e}"
 
-    return HealthResponse(status="ok", version="1.0.0", db=db_status)
+    memory_status = "ok" if is_memory_available() else "disabled"
+
+    return HealthResponse(
+        status="ok", version="1.0.0", db=db_status, memory=memory_status
+    )
 
 
 # ── Log Upload ────────────────────────────────────────────────────────────────
@@ -94,24 +107,104 @@ async def upload_log(file: UploadFile = File(...)):
     )
 
 
-# ── AI Analysis ───────────────────────────────────────────────────────────────
+# ── AI Analysis (with Memory + cascadeflow) ──────────────────────────────────
 
 @router.post(
     "/analyze",
-    response_model=AIAnalysisResult,
+    response_model=AnalyzeResponse,
     status_code=status.HTTP_200_OK,
-    summary="Analyze log content with AI",
+    summary="Analyze log content with AI (memory-augmented, cost-optimized)",
 )
-async def analyze(body: AnalyzeRequest):
+async def analyze(body: AnalyzeRequest, db: AsyncSession = Depends(get_db)):
     """
-    Send log content to Gemini AI for root cause analysis.
-    Returns severity, root cause, fix suggestions, and affected components.
+    Halcyon's core intelligence endpoint:
+    1. Check Hindsight memory for similar past incidents (fast/free path)
+    2. If strong match → return cached resolution instantly
+    3. If no match → run AI analysis via cascadeflow (drafter → verifier)
+    4. Log every decision to the audit trail
     """
+    memory_info = MemoryInfo()
+
+    # ── Step 1: Consult Hindsight Memory ──────────────────────────────────
+    memory_matches = recall_similar(body.log_content)
+    memory_info.consulted = True
+    memory_info.source = "hindsight" if is_memory_available() else "disabled"
+
+    if memory_matches:
+        top_match = memory_matches[0]
+        memory_info.hit = True
+        memory_info.match_score = top_match.get("score", 0)
+        memory_info.match_content = top_match.get("content", "")[:500]
+
+        # If high-confidence memory match, return it as the resolution
+        if memory_info.match_score >= settings.memory_match_threshold:
+            logger.info(
+                "🧠 Memory hit! Score %.2f >= threshold %.2f — returning cached resolution.",
+                memory_info.match_score,
+                settings.memory_match_threshold,
+            )
+
+            # Parse the stored resolution into an AIAnalysisResult
+            analysis = _parse_memory_to_analysis(top_match)
+            routing = RoutingInfo(
+                model_used="hindsight-memory",
+                model_tier="memory",
+                cost=0.0,
+                latency_ms=0.0,
+            )
+
+            # Log the decision
+            await _save_decision_log(
+                db=db,
+                routing_meta=RoutingMetadata(
+                    model_used="hindsight-memory",
+                    model_tier="memory",
+                    cost=0.0,
+                    latency_ms=0.0,
+                    decision_trace={"source": "hindsight_memory", "match_score": memory_info.match_score},
+                ),
+                memory_info=memory_info,
+                analysis=analysis,
+            )
+
+            return AnalyzeResponse(
+                analysis=analysis,
+                routing=routing,
+                memory=memory_info,
+                resolved_from_memory=True,
+            )
+
+    # ── Step 2: Run AI Analysis (cascadeflow or direct) ──────────────────
     try:
-        result = await analyze_log(body.log_content)
+        analysis, routing_meta = await analyze_log(body.log_content)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
-    return result
+
+    routing = RoutingInfo(
+        model_used=routing_meta.model_used,
+        model_tier=routing_meta.model_tier,
+        cost=routing_meta.cost,
+        latency_ms=routing_meta.latency_ms,
+        escalated=routing_meta.escalated,
+        escalation_reason=routing_meta.escalation_reason,
+        cascadeflow_used=routing_meta.cascadeflow_used,
+        decision_trace=routing_meta.decision_trace,
+    )
+
+    # ── Step 3: Log the decision ─────────────────────────────────────────
+    await _save_decision_log(
+        db=db,
+        routing_meta=routing_meta,
+        memory_info=memory_info,
+        analysis=analysis,
+    )
+
+    return AnalyzeResponse(
+        analysis=analysis,
+        routing=routing,
+        memory=memory_info,
+        resolved_from_memory=False,
+    )
 
 
 # ── Save Incident ─────────────────────────────────────────────────────────────
@@ -280,16 +373,17 @@ async def update_incident(
     return _build_incident_response(reloaded.scalar_one())
 
 
-# ── Mark Solved ───────────────────────────────────────────────────────────────
+# ── Mark Solved (+ Hindsight retain) ──────────────────────────────────────────
 
 @router.post(
     "/mark-solved",
     response_model=IncidentResponse,
-    summary="Mark an incident as solved",
+    summary="Mark an incident as solved and write resolution to memory",
 )
 async def mark_solved(body: MarkSolvedRequest, db: AsyncSession = Depends(get_db)):
     """
     Mark an incident as solved and record the solution.
+    Also writes the resolution to Hindsight memory so Halcyon learns from it.
     """
     incident = await _get_incident_or_404(body.incident_id, db)
 
@@ -303,6 +397,29 @@ async def mark_solved(body: MarkSolvedRequest, db: AsyncSession = Depends(get_db
     incident.solved_at = datetime.now(timezone.utc)
     incident.updated_at = datetime.now(timezone.utc)
     await db.flush()
+
+    # ── Write resolution to Hindsight memory ─────────────────────────────
+    memory_stored = retain_resolution(
+        incident_id=incident.id,
+        title=incident.title,
+        root_cause=incident.root_cause or "",
+        solution=body.solution,
+        severity=incident.severity or "UNKNOWN",
+        summary=incident.summary or "",
+        affected_components=incident.affected_components or [],
+        tags=[t.tag for t in (incident.tags or [])],
+    )
+
+    if memory_stored:
+        logger.info(
+            "🧠 Resolution for incident #%d written to Hindsight memory.",
+            incident.id,
+        )
+    else:
+        logger.warning(
+            "⚠️ Could not write resolution for incident #%d to memory.",
+            incident.id,
+        )
 
     reloaded = await db.execute(
         select(Incident)
@@ -329,42 +446,62 @@ async def delete_incident(incident_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post(
     "/incident/{incident_id}/reanalyze",
-    response_model=IncidentResponse,
+    response_model=AnalyzeResponse,
     summary="Re-run AI analysis on an existing incident",
 )
 async def reanalyze_incident(incident_id: int, db: AsyncSession = Depends(get_db)):
     """
-    Re-trigger Gemini analysis for an existing incident and update results.
+    Re-trigger AI analysis for an existing incident and update results.
+    Uses the full memory + cascadeflow pipeline.
     """
     incident = await _get_incident_or_404(incident_id, db)
 
     try:
-        result = await analyze_log(incident.log_content)
+        analysis, routing_meta = await analyze_log(incident.log_content)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-    incident.root_cause = result.root_cause
-    incident.severity = result.severity
-    incident.fix_suggestion = result.fix_suggestion
-    incident.summary = result.summary
-    incident.affected_components = result.affected_components
-    incident.confidence_score = result.confidence_score
+    incident.root_cause = analysis.root_cause
+    incident.severity = analysis.severity
+    incident.fix_suggestion = analysis.fix_suggestion
+    incident.summary = analysis.summary
+    incident.affected_components = analysis.affected_components
+    incident.confidence_score = analysis.confidence_score
     incident.updated_at = datetime.now(timezone.utc)
     await db.flush()
 
-    reloaded = await db.execute(
-        select(Incident)
-        .options(selectinload(Incident.similar_refs), selectinload(Incident.tags))
-        .where(Incident.id == incident_id)
+    # Log the decision
+    await _save_decision_log(
+        db=db,
+        routing_meta=routing_meta,
+        memory_info=MemoryInfo(),
+        analysis=analysis,
+        incident_id=incident_id,
     )
-    return _build_incident_response(reloaded.scalar_one())
+
+    routing = RoutingInfo(
+        model_used=routing_meta.model_used,
+        model_tier=routing_meta.model_tier,
+        cost=routing_meta.cost,
+        latency_ms=routing_meta.latency_ms,
+        escalated=routing_meta.escalated,
+        cascadeflow_used=routing_meta.cascadeflow_used,
+        decision_trace=routing_meta.decision_trace,
+    )
+
+    return AnalyzeResponse(
+        analysis=analysis,
+        routing=routing,
+        memory=MemoryInfo(),
+        resolved_from_memory=False,
+    )
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
 @router.get("/stats", tags=["analytics"], summary="Dashboard statistics")
 async def get_stats(db: AsyncSession = Depends(get_db)):
-    """Returns aggregate stats: total, solved, by-severity counts, MTTR."""
+    """Returns aggregate stats: total, solved, by-severity counts, cost savings."""
     total = (await db.execute(select(func.count()).select_from(Incident))).scalar_one()
     solved = (
         await db.execute(
@@ -377,13 +514,156 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     )
     by_severity = {row[0] or "UNKNOWN": row[1] for row in severity_rows}
 
+    # Decision audit stats
+    total_decisions = (
+        await db.execute(select(func.count()).select_from(DecisionLog))
+    ).scalar_one()
+    total_cost = (
+        await db.execute(select(func.sum(DecisionLog.cost)))
+    ).scalar_one() or 0.0
+    memory_hits = (
+        await db.execute(
+            select(func.count()).select_from(DecisionLog).where(DecisionLog.memory_hit == True)
+        )
+    ).scalar_one()
+    escalations = (
+        await db.execute(
+            select(func.count()).select_from(DecisionLog).where(DecisionLog.escalated == True)
+        )
+    ).scalar_one()
+
     return {
         "total_incidents": total,
         "solved_incidents": solved,
         "open_incidents": total - solved,
         "resolution_rate": round(solved / total * 100, 1) if total else 0.0,
         "by_severity": by_severity,
+        "ai_decisions": {
+            "total_decisions": total_decisions,
+            "total_cost": round(total_cost, 6),
+            "memory_hits": memory_hits,
+            "escalations": escalations,
+            "memory_hit_rate": round(memory_hits / total_decisions * 100, 1) if total_decisions else 0.0,
+        },
     }
+
+
+# ── Decision Audit Trail ─────────────────────────────────────────────────────
+
+@router.get(
+    "/decisions",
+    response_model=DecisionLogListResponse,
+    tags=["audit"],
+    summary="Get decision audit trail (paginated)",
+)
+async def get_decisions(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    incident_id: Optional[int] = Query(default=None),
+    model_used: Optional[str] = Query(default=None),
+    escalated: Optional[bool] = Query(default=None),
+    memory_hit: Optional[bool] = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Paginated decision audit trail with filters."""
+    query = select(DecisionLog)
+
+    if incident_id is not None:
+        query = query.where(DecisionLog.incident_id == incident_id)
+    if model_used is not None:
+        query = query.where(DecisionLog.model_used == model_used)
+    if escalated is not None:
+        query = query.where(DecisionLog.escalated == escalated)
+    if memory_hit is not None:
+        query = query.where(DecisionLog.memory_hit == memory_hit)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(count_query)).scalar_one()
+
+    offset = (page - 1) * page_size
+    query = query.order_by(DecisionLog.created_at.desc()).offset(offset).limit(page_size)
+    rows = (await db.execute(query)).scalars().all()
+
+    return DecisionLogListResponse(
+        decisions=[DecisionLogSchema.model_validate(r) for r in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=max(1, -(-total // page_size)),
+    )
+
+
+@router.get(
+    "/decisions/{incident_id}",
+    response_model=list[DecisionLogSchema],
+    tags=["audit"],
+    summary="Get decisions for a specific incident",
+)
+async def get_incident_decisions(
+    incident_id: int, db: AsyncSession = Depends(get_db)
+):
+    """All decision records linked to a specific incident."""
+    result = await db.execute(
+        select(DecisionLog)
+        .where(DecisionLog.incident_id == incident_id)
+        .order_by(DecisionLog.created_at.desc())
+    )
+    return [DecisionLogSchema.model_validate(r) for r in result.scalars().all()]
+
+
+# ── Sample Log Loader (Hackathon Demo) ────────────────────────────────────────
+
+SAMPLE_LOGS_DIR = os.path.join(os.path.dirname(__file__), "sample_logs")
+
+
+@router.get("/samples", tags=["demo"], summary="List available sample log scenarios")
+async def list_samples():
+    """List all available sample log files for demo purposes."""
+    if not os.path.isdir(SAMPLE_LOGS_DIR):
+        return {"scenarios": [], "message": "No sample_logs/ directory found."}
+
+    scenarios = []
+    for f in sorted(os.listdir(SAMPLE_LOGS_DIR)):
+        if f.endswith((".log", ".txt")):
+            name = os.path.splitext(f)[0]
+            path = os.path.join(SAMPLE_LOGS_DIR, f)
+            size = os.path.getsize(path)
+            scenarios.append({"name": name, "filename": f, "size_bytes": size})
+
+    return {"scenarios": scenarios}
+
+
+@router.post(
+    "/load-sample/{scenario}",
+    response_model=AnalyzeResponse,
+    tags=["demo"],
+    summary="Load and analyze a sample log scenario",
+)
+async def load_sample(scenario: str, db: AsyncSession = Depends(get_db)):
+    """
+    Load a bundled sample log file and run the full Halcyon analysis pipeline.
+    Useful for hackathon demos.
+    """
+    # Find the file
+    sample_file = None
+    if os.path.isdir(SAMPLE_LOGS_DIR):
+        for f in os.listdir(SAMPLE_LOGS_DIR):
+            if f.startswith(scenario) and f.endswith((".log", ".txt")):
+                sample_file = os.path.join(SAMPLE_LOGS_DIR, f)
+                break
+
+    if not sample_file or not os.path.exists(sample_file):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Sample scenario '{scenario}' not found. Use GET /api/samples to list available scenarios.",
+        )
+
+    with open(sample_file, "r", encoding="utf-8", errors="replace") as fh:
+        log_content = fh.read()
+
+    # Run through the same analysis pipeline as /api/analyze
+    body = AnalyzeRequest(log_content=log_content)
+    return await analyze(body, db)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -431,3 +711,61 @@ def _build_incident_response(incident: Incident) -> IncidentResponse:
             for r in (incident.similar_refs or [])
         ],
     )
+
+
+def _parse_memory_to_analysis(memory_match: dict) -> AIAnalysisResult:
+    """Parse a Hindsight memory match into an AIAnalysisResult."""
+    content = memory_match.get("content", "")
+
+    # Try to parse structured fields from the stored memory document
+    lines = content.split("\n")
+    fields = {}
+    for line in lines:
+        if ":" in line:
+            key, _, value = line.partition(":")
+            fields[key.strip().lower()] = value.strip()
+
+    return AIAnalysisResult(
+        root_cause=fields.get("root cause", "Retrieved from past incident memory."),
+        severity=fields.get("severity", "MEDIUM"),
+        fix_suggestion=fields.get("solution", fields.get("fix suggestion", "See past resolution.")),
+        summary=fields.get("summary", "Resolved from Hindsight memory — similar past incident found."),
+        affected_components=(
+            [c.strip() for c in fields.get("affected components", "").split(",") if c.strip()]
+            or ["unknown"]
+        ),
+        confidence_score=min(1.0, memory_match.get("score", 0.8)),
+    )
+
+
+async def _save_decision_log(
+    db: AsyncSession,
+    routing_meta: RoutingMetadata,
+    memory_info: MemoryInfo,
+    analysis: AIAnalysisResult,
+    incident_id: Optional[int] = None,
+) -> None:
+    """Persist a decision audit record."""
+    try:
+        log = DecisionLog(
+            incident_id=incident_id,
+            model_used=routing_meta.model_used,
+            model_tier=routing_meta.model_tier,
+            cost=routing_meta.cost,
+            latency_ms=routing_meta.latency_ms,
+            escalated=routing_meta.escalated,
+            escalation_reason=routing_meta.escalation_reason or None,
+            memory_consulted=memory_info.consulted,
+            memory_hit=memory_info.hit,
+            memory_match_score=memory_info.match_score if memory_info.hit else None,
+            memory_match_content=memory_info.match_content[:500] if memory_info.hit else None,
+            cascadeflow_used=routing_meta.cascadeflow_used,
+            decision_trace=routing_meta.decision_trace,
+            confidence_score=analysis.confidence_score,
+            severity=analysis.severity,
+        )
+        db.add(log)
+        await db.flush()
+        logger.debug("Decision log saved (model=%s, cost=$%.6f)", routing_meta.model_used, routing_meta.cost)
+    except Exception as exc:
+        logger.error("Failed to save decision log: %s", exc)

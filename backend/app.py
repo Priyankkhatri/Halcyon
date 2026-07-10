@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 from database import init_db
+from memory import init_memory
 from routes import router
 
 # ── Logging Setup ─────────────────────────────────────────────────────────────
@@ -27,10 +28,12 @@ logger = logging.getLogger("halcyon")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize DB tables on startup."""
+    """Initialize DB tables and memory system on startup."""
     logger.info("🚀 Halcyon backend starting up…")
     await init_db()
     logger.info("✅ Database initialized.")
+    await init_memory()
+    logger.info("✅ Memory system initialized.")
     yield
     logger.info("🛑 Halcyon backend shutting down.")
 

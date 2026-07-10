@@ -1,0 +1,15 @@
+2025-07-10 03:45:01.000 [INFO]  system-monitor      Memory usage check initiated
+2025-07-10 03:45:01.120 [INFO]  system-monitor      RSS: 14.2GB / 16GB (88.7%)
+2025-07-10 03:45:01.200 [WARN]  data-pipeline       Heap allocation spike detected — 2.1GB allocated in last 60s
+2025-07-10 03:45:02.000 [WARN]  system-monitor      RSS: 15.1GB / 16GB (94.4%) — approaching limit
+2025-07-10 03:45:02.500 [ERROR] data-pipeline       java.lang.OutOfMemoryError: Java heap space
+2025-07-10 03:45:02.501 [ERROR] data-pipeline           at com.pipeline.BatchProcessor.processBatch(BatchProcessor.java:142)
+2025-07-10 03:45:02.502 [ERROR] data-pipeline           at com.pipeline.ETLWorker.run(ETLWorker.java:89)
+2025-07-10 03:45:02.600 [WARN]  gc-monitor          Full GC triggered — pause time 4.8s (threshold: 2s)
+2025-07-10 03:45:03.000 [ERROR] system-monitor      RSS: 15.8GB / 16GB (98.8%) — CRITICAL
+2025-07-10 03:45:03.100 [CRITICAL] oom-killer       Process data-pipeline (PID 24601) selected for OOM kill
+2025-07-10 03:45:03.200 [CRITICAL] oom-killer       Killed process 24601 (data-pipeline) — freed 14.2GB
+2025-07-10 03:45:03.300 [ERROR] supervisor          data-pipeline exited with signal SIGKILL (9)
+2025-07-10 03:45:03.400 [WARN]  supervisor          Restarting data-pipeline (attempt 1/5)
+2025-07-10 03:45:05.000 [INFO]  supervisor          data-pipeline restarted successfully
+2025-07-10 03:45:06.000 [WARN]  data-pipeline       Memory leak suspected — RSS climbing again: 8.1GB after restart

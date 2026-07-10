@@ -1,12 +1,15 @@
 """
-Halcyon Backend — AI Module (Groq SDK)
-Handles log analysis: root cause, severity, fix suggestions using Groq API.
+Halcyon Backend — AI Module (cascadeflow + Groq)
+Handles log analysis with intelligent model routing via cascadeflow.
+Falls back to direct Groq SDK when cascadeflow is disabled.
 """
 import asyncio
 import json
 import re
 import logging
-from typing import Optional
+import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 from groq import Groq
 
@@ -16,9 +19,24 @@ from schemas import AIAnalysisResult
 logger = logging.getLogger(__name__)
 
 
+# ── Routing Metadata ──────────────────────────────────────────────────────────
+
+@dataclass
+class RoutingMetadata:
+    """Captures model-routing decisions for the audit trail."""
+    model_used: str = "unknown"
+    model_tier: str = "direct"           # drafter | verifier | direct | mock | known
+    cost: float = 0.0
+    latency_ms: float = 0.0
+    escalated: bool = False
+    escalation_reason: str = ""
+    decision_trace: Dict[str, Any] = field(default_factory=dict)
+    cascadeflow_used: bool = False
+
+
 # ── Client Setup ──────────────────────────────────────────────────────────────
 
-def _configure_client() -> Optional[Groq]:
+def _configure_groq_client() -> Optional[Groq]:
     """Configure and return the Groq client, or None if no key is set."""
     api_key = settings.groq_api_key
     if not api_key:
@@ -27,7 +45,59 @@ def _configure_client() -> Optional[Groq]:
     return Groq(api_key=api_key)
 
 
-_client: Optional[Groq] = _configure_client()
+_groq_client: Optional[Groq] = _configure_groq_client()
+
+
+# ── CascadeFlow Setup ────────────────────────────────────────────────────────
+
+_cascade_agent = None
+
+
+def _configure_cascade():
+    """Configure the cascadeflow CascadeAgent if enabled and available."""
+    global _cascade_agent
+
+    if not settings.cascadeflow_enabled:
+        logger.info("cascadeflow is disabled (CASCADEFLOW_ENABLED=false).")
+        return
+
+    if not settings.groq_api_key:
+        logger.info("cascadeflow skipped — no GROQ_API_KEY for model calls.")
+        return
+
+    try:
+        from cascadeflow import CascadeAgent, ModelConfig
+
+        _cascade_agent = CascadeAgent(models=[
+            ModelConfig(
+                name=settings.draft_model,
+                provider="groq",
+                cost=0.00005,    # ~$0.05/1M tokens (llama-3.1-8b)
+            ),
+            ModelConfig(
+                name=settings.verifier_model,
+                provider="groq",
+                cost=0.00059,    # ~$0.59/1M tokens (llama-3.3-70b)
+            ),
+        ])
+
+        logger.info(
+            "✅ cascadeflow CascadeAgent initialized: %s → %s (mode: %s)",
+            settings.draft_model,
+            settings.verifier_model,
+            settings.cascadeflow_mode,
+        )
+    except ImportError:
+        logger.warning(
+            "cascadeflow not installed. Using direct Groq calls. "
+            "Install with: pip install cascadeflow"
+        )
+    except Exception as exc:
+        logger.warning("Failed to init cascadeflow: %s — falling back to direct Groq.", exc)
+
+
+# Eager init
+_configure_cascade()
 
 
 # ── Prompt Builder ────────────────────────────────────────────────────────────
@@ -75,7 +145,7 @@ Respond with ONLY the JSON object:"""
 # ── Parser ────────────────────────────────────────────────────────────────────
 
 def _parse_response(raw: str) -> AIAnalysisResult:
-    """Strip markdown fences and parse JSON from Groq response."""
+    """Strip markdown fences and parse JSON from LLM response."""
     # Remove ```json ... ``` fences if present
     cleaned = re.sub(r"```(?:json)?\s*", "", raw).strip().rstrip("`").strip()
 
@@ -208,28 +278,84 @@ def _match_known_incidents(log_content: str) -> Optional[AIAnalysisResult]:
     return None
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── cascadeflow Analysis Path ─────────────────────────────────────────────────
 
-async def analyze_log(log_content: str) -> AIAnalysisResult:
-    """
-    Analyze log content using the Groq API (llama-3.3-70b-versatile).
-    Falls back to mock analysis if no API key is configured.
-    """
-    known_info = _match_known_incidents(log_content)
-    if known_info:
-        logger.info("Retrieved analysis from predefined known scenarios.")
-        return known_info
-
-    if _client is None:
-        logger.info("Using mock AI analysis (no API key).")
-        return _mock_analysis(log_content)
-
+async def _analyze_with_cascade(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """Run analysis through cascadeflow's CascadeAgent for intelligent model routing."""
+    metadata = RoutingMetadata(cascadeflow_used=True)
     prompt = _build_prompt(log_content)
+    start = time.perf_counter()
+
     try:
-        # Run Groq API call in a thread pool (blocking wrapper)
+        result = await _cascade_agent.run(
+            prompt,
+            system_prompt=_SYSTEM_PROMPT,
+        )
+
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        metadata.latency_ms = round(elapsed_ms, 1)
+
+        # Extract routing info from cascadeflow result
+        metadata.model_used = getattr(result, "model_used", settings.draft_model)
+        metadata.cost = getattr(result, "total_cost", 0.0)
+
+        # Determine if escalation happened
+        if hasattr(result, "model_used") and result.model_used != settings.draft_model:
+            metadata.escalated = True
+            metadata.model_tier = "verifier"
+            metadata.escalation_reason = "Quality validation triggered escalation to verifier model"
+        else:
+            metadata.model_tier = "drafter"
+
+        # Build decision trace
+        metadata.decision_trace = {
+            "draft_model": settings.draft_model,
+            "verifier_model": settings.verifier_model,
+            "model_used": metadata.model_used,
+            "escalated": metadata.escalated,
+            "cost": metadata.cost,
+            "latency_ms": metadata.latency_ms,
+            "cascadeflow_mode": settings.cascadeflow_mode,
+        }
+
+        # Add savings info if available
+        if hasattr(result, "savings_percentage"):
+            metadata.decision_trace["savings_percentage"] = result.savings_percentage
+
+        raw_text = result.content if hasattr(result, "content") else str(result)
+        analysis = _parse_response(raw_text)
+
+        logger.info(
+            "cascadeflow analysis complete: model=%s, escalated=%s, cost=$%.6f, latency=%.0fms",
+            metadata.model_used,
+            metadata.escalated,
+            metadata.cost,
+            metadata.latency_ms,
+        )
+        return analysis, metadata
+
+    except Exception as exc:
+        logger.error("cascadeflow analysis failed: %s — falling back to direct Groq", exc)
+        # Fall back to direct Groq
+        return await _analyze_with_groq(log_content)
+
+
+# ── Direct Groq Analysis Path ────────────────────────────────────────────────
+
+async def _analyze_with_groq(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """Run analysis directly through the Groq SDK (fallback path)."""
+    metadata = RoutingMetadata(
+        model_used=settings.verifier_model,
+        model_tier="direct",
+        cascadeflow_used=False,
+    )
+    prompt = _build_prompt(log_content)
+    start = time.perf_counter()
+
+    try:
         response = await asyncio.to_thread(
-            _client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
+            _groq_client.chat.completions.create,
+            model=settings.verifier_model,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
@@ -237,8 +363,83 @@ async def analyze_log(log_content: str) -> AIAnalysisResult:
             temperature=0.2,
             max_tokens=1024,
         )
+
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        metadata.latency_ms = round(elapsed_ms, 1)
+
+        # Extract usage for cost estimation
+        usage = getattr(response, "usage", None)
+        if usage:
+            total_tokens = getattr(usage, "total_tokens", 0)
+            metadata.cost = total_tokens * 0.00000059  # rough llama-3.3-70b rate
+
+        metadata.decision_trace = {
+            "model_used": settings.verifier_model,
+            "fallback": True,
+            "reason": "cascadeflow unavailable or disabled",
+            "latency_ms": metadata.latency_ms,
+            "cost": metadata.cost,
+        }
+
         raw_text = response.choices[0].message.content
-        return _parse_response(raw_text)
+        analysis = _parse_response(raw_text)
+
+        logger.info(
+            "Direct Groq analysis complete: model=%s, cost=$%.6f, latency=%.0fms",
+            settings.verifier_model,
+            metadata.cost,
+            metadata.latency_ms,
+        )
+        return analysis, metadata
+
     except Exception as exc:
         logger.error("Groq API error: %s", exc)
         raise RuntimeError(f"AI analysis failed: {exc}") from exc
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+async def analyze_log(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """
+    Analyze log content using cascadeflow-routed models.
+
+    Returns:
+        (AIAnalysisResult, RoutingMetadata) — analysis results + routing audit info.
+
+    Execution priority:
+        1. Check predefined known incidents (instant, free)
+        2. If cascadeflow is available → use CascadeAgent (drafter → verifier)
+        3. If cascadeflow unavailable → direct Groq SDK call
+        4. If no API key → mock analysis
+    """
+    # 1. Known incident patterns (instant match, no cost)
+    known_info = _match_known_incidents(log_content)
+    if known_info:
+        logger.info("Retrieved analysis from predefined known scenarios.")
+        metadata = RoutingMetadata(
+            model_used="predefined-pattern",
+            model_tier="known",
+            cost=0.0,
+            latency_ms=0.0,
+            decision_trace={"source": "predefined_known_incidents"},
+        )
+        return known_info, metadata
+
+    # 2. No API key → mock
+    if _groq_client is None:
+        logger.info("Using mock AI analysis (no API key).")
+        metadata = RoutingMetadata(
+            model_used="mock",
+            model_tier="mock",
+            cost=0.0,
+            latency_ms=0.0,
+            decision_trace={"source": "mock_no_api_key"},
+        )
+        return _mock_analysis(log_content), metadata
+
+    # 3. cascadeflow available → use it
+    if _cascade_agent is not None:
+        return await _analyze_with_cascade(log_content)
+
+    # 4. Direct Groq fallback
+    return await _analyze_with_groq(log_content)

@@ -1,0 +1,12 @@
+2025-07-10 06:15:00.000 [INFO]  disk-monitor        Starting disk usage check across all mounts
+2025-07-10 06:15:00.100 [INFO]  disk-monitor        /dev/sda1 (/): 45% used (45GB/100GB)
+2025-07-10 06:15:00.200 [WARN]  disk-monitor        /dev/sdb1 (/var/log): 89% used (89GB/100GB)
+2025-07-10 06:15:00.300 [INFO]  log-rotator         Log rotation triggered for /var/log/app/*.log
+2025-07-10 06:15:01.000 [ERROR] disk-monitor        /dev/sdb1 (/var/log): 95% used (95GB/100GB) — THRESHOLD EXCEEDED
+2025-07-10 06:15:01.100 [ERROR] app-server          Failed to write access log: No space left on device (errno=28)
+2025-07-10 06:15:01.200 [ERROR] app-server          Failed to write application log: No space left on device (errno=28)
+2025-07-10 06:15:01.300 [CRITICAL] disk-monitor     /dev/sdb1 (/var/log): 99% used — CRITICAL
+2025-07-10 06:15:01.400 [ERROR] database-service    WAL write failed: No space left on device — switching to read-only mode
+2025-07-10 06:15:01.500 [CRITICAL] database-service  Database entered READ-ONLY mode due to disk space exhaustion
+2025-07-10 06:15:01.600 [ERROR] app-server          All write operations failing — service degraded
+2025-07-10 06:15:02.000 [CRITICAL] monitoring-agent  DISK FULL ALERT: /var/log at 99% — immediate action required

@@ -3,7 +3,7 @@ Halcyon Backend — Pydantic Schemas
 Request / Response models for all API endpoints.
 """
 from datetime import datetime
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -20,6 +20,35 @@ class AIAnalysisResult(BaseModel):
     summary: str
     affected_components: List[str] = []
     confidence_score: float = Field(ge=0.0, le=1.0)
+
+
+class RoutingInfo(BaseModel):
+    """Model routing metadata returned alongside analysis results."""
+    model_used: str = "unknown"
+    model_tier: str = "direct"         # drafter | verifier | direct | mock | known
+    cost: float = 0.0
+    latency_ms: float = 0.0
+    escalated: bool = False
+    escalation_reason: str = ""
+    cascadeflow_used: bool = False
+    decision_trace: Dict[str, Any] = {}
+
+
+class MemoryInfo(BaseModel):
+    """Memory (Hindsight) lookup metadata."""
+    consulted: bool = False
+    hit: bool = False
+    match_score: float = 0.0
+    match_content: str = ""
+    source: str = ""    # "hindsight" | "local" | ""
+
+
+class AnalyzeResponse(BaseModel):
+    """Full response from the /api/analyze endpoint, combining analysis + routing + memory."""
+    analysis: AIAnalysisResult
+    routing: RoutingInfo = RoutingInfo()
+    memory: MemoryInfo = MemoryInfo()
+    resolved_from_memory: bool = False
 
 
 # ── File Upload ───────────────────────────────────────────────────────────────
@@ -110,6 +139,39 @@ class UpdateIncidentRequest(BaseModel):
         return v.upper() if v else v
 
 
+# ── Decision Log ──────────────────────────────────────────────────────────────
+
+class DecisionLogSchema(BaseModel):
+    """Schema for a single decision audit record."""
+    id: int
+    incident_id: Optional[int] = None
+    model_used: str
+    model_tier: str
+    cost: float
+    latency_ms: float
+    escalated: bool
+    escalation_reason: Optional[str] = None
+    memory_consulted: bool
+    memory_hit: bool
+    memory_match_score: Optional[float] = None
+    cascadeflow_used: bool
+    decision_trace: Optional[Dict[str, Any]] = None
+    confidence_score: Optional[float] = None
+    severity: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DecisionLogListResponse(BaseModel):
+    """Paginated list of decision logs."""
+    decisions: List[DecisionLogSchema]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
 # ── Generic Responses ─────────────────────────────────────────────────────────
 
 class MessageResponse(BaseModel):
@@ -121,6 +183,7 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     db: str
+    memory: str = "unknown"
 
 
 class ErrorResponse(BaseModel):

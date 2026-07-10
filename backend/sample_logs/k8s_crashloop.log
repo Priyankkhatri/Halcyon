@@ -1,0 +1,13 @@
+2025-07-10 04:00:00.000 [INFO]  k8s-controller     Reconciling deployment: payment-service (namespace: production)
+2025-07-10 04:00:00.100 [INFO]  k8s-controller     Desired replicas: 3, Current replicas: 3
+2025-07-10 04:00:01.000 [ERROR] payment-service     Pod payment-service-7d4f8b6c9-xk2lm: container exited with code 137 (OOMKilled)
+2025-07-10 04:00:01.100 [WARN]  k8s-controller     Pod payment-service-7d4f8b6c9-xk2lm entering CrashLoopBackOff
+2025-07-10 04:00:01.200 [INFO]  k8s-controller     Back-off restarting failed container payment-service
+2025-07-10 04:00:05.000 [ERROR] payment-service     Pod payment-service-7d4f8b6c9-xk2lm: CrashLoopBackOff — back-off 10s
+2025-07-10 04:00:15.000 [ERROR] payment-service     Container startup failed: Error: Cannot connect to Redis at redis-master:6379 — Connection refused
+2025-07-10 04:00:15.100 [ERROR] payment-service     Fatal: required dependency 'redis' unavailable — exiting
+2025-07-10 04:00:15.200 [WARN]  k8s-controller     Pod payment-service-7d4f8b6c9-xk2lm: CrashLoopBackOff — back-off 20s
+2025-07-10 04:00:35.000 [ERROR] payment-service     Container startup failed: Error: Cannot connect to Redis at redis-master:6379 — Connection refused
+2025-07-10 04:00:35.100 [CRITICAL] k8s-controller   payment-service: 1/3 pods available — service degraded
+2025-07-10 04:00:35.200 [ERROR] hpa-controller      Cannot scale payment-service — pods in CrashLoopBackOff
+2025-07-10 04:00:36.000 [CRITICAL] ingress-controller  Upstream payment-service returning 502 — removing from load balancer
