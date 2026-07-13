@@ -2,6 +2,7 @@
 Halcyon Backend — Configuration & Settings
 Loads from .env file using pydantic-settings.
 """
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 import os
@@ -49,6 +50,12 @@ class Settings(BaseSettings):
         default=".log,.txt,.out,.err", alias="ALLOWED_EXTENSIONS"
     )
     uploads_dir: str = Field(default="uploads", alias="UPLOADS_DIR")
+
+    # GitHub Integration
+    github_token: Optional[str] = Field(default=None, alias="GITHUB_TOKEN")
+    github_repo: Optional[str] = Field(default=None, alias="GITHUB_REPO")
+    github_lookback_minutes: int = Field(default=60, alias="GITHUB_LOOKBACK_MINUTES")
+    github_encryption_key: Optional[str] = Field(default=None, alias="GITHUB_ENCRYPTION_KEY")
 
     @property
     def max_upload_size_bytes(self) -> int:

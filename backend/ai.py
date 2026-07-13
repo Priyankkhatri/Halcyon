@@ -492,3 +492,147 @@ async def analyze_log(log_content: str, sensitive: bool = False) -> tuple[AIAnal
 
     # 4. Direct Groq fallback
     return await _analyze_with_groq(log_content)
+
+
+_DIFF_SYSTEM_PROMPT = """
+You are Halcyon AI — an expert SRE specializing in code analysis and incident correlation.
+Your task is to analyze a recent git commit diff and the raw log content from a production incident.
+Determine whether the code change in the commit plausibly caused or contributed to the incident.
+
+Assess the plausibility and return a structured JSON response with:
+- plausibility: Must be one of HIGH | MEDIUM | LOW | UNRELATED.
+- reason: A single sentence explaining the logical connection (or lack thereof) between the change and the logs.
+
+Guidelines for Plausibility:
+- HIGH: Direct connection. e.g., the commit changes a config parameter or code path that is explicitly failing in the logs.
+- MEDIUM: Strong circumstantial connection. e.g., the commit modifies a service that is failing, but the exact error source is not clear from the diff alone.
+- LOW: Weak connection. e.g., general changes in the same codebase but unlikely to cause this specific error.
+- UNRELATED: The changes are in completely unrelated parts of the codebase, docs, or tests.
+
+IMPORTANT: Return ONLY valid JSON — no markdown fences, no extra text.
+"""
+
+
+def _build_diff_prompt(log_content: str, commit_sha: str, commit_message: str, commit_diff: str) -> str:
+    # Truncate content if too long
+    max_log_chars = 4000
+    if len(log_content) > max_log_chars:
+        half = max_log_chars // 2
+        log_content = log_content[:half] + "\n... [TRUNCATED] ...\n" + log_content[-half:]
+
+    max_diff_chars = 6000
+    if len(commit_diff) > max_diff_chars:
+        commit_diff = commit_diff[:max_diff_chars] + "\n... [DIFF TRUNCATED] ...\n"
+
+    return f"""--- INCIDENT LOGS ---
+{log_content}
+
+--- COMMIT DETAILS ---
+SHA: {commit_sha}
+Message: {commit_message}
+
+--- COMMIT DIFF ---
+{commit_diff}
+
+Respond with ONLY the JSON object:"""
+
+
+async def analyze_commit_diff(
+    log_content: str,
+    commit_sha: str,
+    commit_message: str,
+    commit_diff: str,
+) -> tuple[dict, RoutingMetadata]:
+    """
+    Analyze whether a commit diff plausibly caused the incident.
+    Returns (result_dict, routing_metadata) using the same cascadeflow / Groq architecture.
+    """
+    metadata = RoutingMetadata()
+    
+    # Predefined / mock fallback if no API key
+    if _groq_client is None:
+        metadata.model_used = "mock"
+        metadata.model_tier = "mock"
+        result = {"plausibility": "UNRELATED", "reason": "Mock analysis — no API key configured."}
+        return result, metadata
+
+    prompt = _build_diff_prompt(log_content, commit_sha, commit_message, commit_diff)
+
+    if settings.cascadeflow_enabled and _cascade_agent is not None:
+        metadata.cascadeflow_used = True
+        start = time.perf_counter()
+        try:
+            result = await _cascade_agent.run(
+                prompt,
+                system_prompt=_DIFF_SYSTEM_PROMPT,
+            )
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            metadata.latency_ms = round(elapsed_ms, 1)
+            metadata.model_used = getattr(result, "model_used", settings.draft_model)
+            metadata.cost = getattr(result, "total_cost", 0.0)
+            if hasattr(result, "model_used") and result.model_used != settings.draft_model:
+                metadata.escalated = True
+                metadata.model_tier = "verifier"
+                metadata.escalation_reason = "Quality validation triggered escalation to verifier model"
+            else:
+                metadata.model_tier = "drafter"
+            
+            metadata.decision_trace = {
+                "draft_model": settings.draft_model,
+                "verifier_model": settings.verifier_model,
+                "model_used": metadata.model_used,
+                "escalated": metadata.escalated,
+                "cost": metadata.cost,
+                "latency_ms": metadata.latency_ms,
+                "cascadeflow_mode": settings.cascadeflow_mode,
+                "type": "commit_correlation",
+                "commit_sha": commit_sha,
+            }
+            raw_text = result.content if hasattr(result, "content") else str(result)
+            cleaned = re.sub(r"```(?:json)?\s*", "", raw_text).strip().rstrip("`").strip()
+            parsed = json.loads(cleaned)
+            parsed["plausibility"] = parsed.get("plausibility", "UNRELATED").upper()
+            return parsed, metadata
+        except Exception as exc:
+            logger.error("CascadeFlow commit analysis failed: %s — falling back to direct Groq", exc)
+
+    # Fallback to direct Groq
+    start = time.perf_counter()
+    model_name = settings.verifier_model
+    metadata.model_used = model_name
+    metadata.model_tier = "direct"
+    try:
+        response = await asyncio.to_thread(
+            _groq_client.chat.completions.create,
+            model=model_name,
+            messages=[
+                {"role": "system", "content": _DIFF_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            max_tokens=512,
+        )
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        metadata.latency_ms = round(elapsed_ms, 1)
+        usage = getattr(response, "usage", None)
+        if usage:
+            total_tokens = getattr(usage, "total_tokens", 0)
+            metadata.cost = total_tokens * 0.00000059
+
+        metadata.decision_trace = {
+            "model_used": model_name,
+            "fallback": True,
+            "reason": "Direct Groq call",
+            "latency_ms": metadata.latency_ms,
+            "cost": metadata.cost,
+            "type": "commit_correlation",
+            "commit_sha": commit_sha,
+        }
+        raw_text = response.choices[0].message.content
+        cleaned = re.sub(r"```(?:json)?\s*", "", raw_text).strip().rstrip("`").strip()
+        parsed = json.loads(cleaned)
+        parsed["plausibility"] = parsed.get("plausibility", "UNRELATED").upper()
+        return parsed, metadata
+    except Exception as exc:
+        logger.error("Groq API error in commit analysis: %s", exc)
+        return {"plausibility": "UNRELATED", "reason": f"Analysis failed: {exc}"}, metadata

@@ -45,12 +45,24 @@ class MemoryInfo(BaseModel):
     source: str = ""    # "hindsight" | "local" | ""
 
 
+class SuspectedCommitSchema(BaseModel):
+    sha: str
+    author: str
+    message: str
+    timestamp: datetime
+    changed_files: List[str]
+    plausibility: str  # HIGH | MEDIUM | LOW | UNRELATED
+    reasoning: str
+    repo: Optional[str] = None
+
+
 class IncidentSubmitResponse(BaseModel):
     """Full response from the /incidents endpoint, combining analysis + routing + memory."""
     analysis: AIAnalysisResult
     routing: RoutingInfo = RoutingInfo()
     memory: MemoryInfo = MemoryInfo()
     resolved_from_memory: bool = False
+    suspected_commit: Optional[SuspectedCommitSchema] = None
 
 
 # ── File Upload ───────────────────────────────────────────────────────────────
@@ -105,6 +117,7 @@ class IncidentResponse(IncidentBase):
     created_at: datetime
     updated_at: datetime
     similar_incidents: List[SimilarIncidentSchema] = []
+    suspected_commit: Optional[SuspectedCommitSchema] = None
 
     model_config = {"from_attributes": True}
 
@@ -122,6 +135,7 @@ class IncidentListResponse(BaseModel):
 class MarkSolvedRequest(BaseModel):
     incident_id: int
     solution: str = Field(..., min_length=1)
+    commit_caused: Optional[bool] = Field(default=None, description="Confirm if the suspected commit was the cause")
 
 
 # ── Update Incident ───────────────────────────────────────────────────────────
@@ -192,3 +206,25 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     error_code: Optional[str] = None
+
+
+# ── GitHub Integrations ───────────────────────────────────────────────────────
+
+class GitHubConnectRequest(BaseModel):
+    token: str
+    repo_owner: str
+    repo_name: str
+
+
+class GitHubUpdateRequest(BaseModel):
+    token: Optional[str] = None
+    repo_owner: Optional[str] = None
+    repo_name: Optional[str] = None
+
+
+class GitHubStatusResponse(BaseModel):
+    connected: bool
+    repo_owner: Optional[str] = None
+    repo_name: Optional[str] = None
+    status: Optional[str] = None  # connected / invalid / disconnected
+    connected_at: Optional[datetime] = None

@@ -7,6 +7,30 @@ import { Button } from './ui/Button';
 import TrustMeter from './ui/TrustMeter';
 import Waveform from './Waveform';
 
+const getRelativeTimestamp = (incidentTimeStr, commitTimeStr) => {
+  const incidentTime = new Date(incidentTimeStr);
+  const commitTime = new Date(commitTimeStr);
+  const diffMs = incidentTime - commitTime;
+  const diffMins = Math.round(diffMs / 60000);
+  if (diffMins < 0) {
+    return `${Math.abs(diffMins)} minutes after this incident`;
+  }
+  if (diffMins === 0) {
+    return 'at the same time as this incident';
+  }
+  if (diffMins === 1) {
+    return '1 minute before this incident';
+  }
+  if (diffMins < 60) {
+    return `${diffMins} minutes before this incident`;
+  }
+  const diffHours = Math.round(diffMins / 60);
+  if (diffHours === 1) {
+    return '1 hour before this incident';
+  }
+  return `${diffHours} hours before this incident`;
+};
+
 export default function IncidentDetail({ id }) {
   const [incident, setIncident] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -14,17 +38,21 @@ export default function IncidentDetail({ id }) {
   const [resolving, setResolving] = useState(false);
   const [solutionText, setSolutionText] = useState('');
   const [compareMode, setCompareMode] = useState(false);
+  const [commitCaused, setCommitCaused] = useState(false);
+  const [hasConnection, setHasConnection] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [incData, auditData] = await Promise.all([
+        const [incData, auditData, statusData] = await Promise.all([
           api.getIncident(id),
-          api.getIncidentAudit(id)
+          api.getIncidentAudit(id),
+          api.getGithubStatus().catch(() => ({ connected: false, status: 'disconnected' }))
         ]);
         setIncident(incData);
         setAuditLogs(auditData || []);
         setSolutionText(incData.solution || incData.fix_suggestion || '');
+        setHasConnection(statusData.connected && statusData.status === 'connected');
       } catch (err) {
         console.error(err);
       } finally {
@@ -38,7 +66,11 @@ export default function IncidentDetail({ id }) {
     if (!solutionText.trim()) return;
     setResolving(true);
     try {
-      const updated = await api.resolveIncident(id, solutionText);
+      const updated = await api.resolveIncident(
+        id, 
+        solutionText, 
+        incident.suspected_commit ? commitCaused : null
+      );
       setIncident(updated);
     } catch (err) {
       console.error("Failed to resolve incident:", err);
@@ -244,6 +276,66 @@ export default function IncidentDetail({ id }) {
           <Card className="flex flex-col" animateHover={false}>
             <h3 className="font-serif text-2xl sm:text-3xl text-text-primary border-b border-border-light pb-4 mb-6">Agent Reasoning</h3>
             <div className="space-y-8 flex-1">
+              {incident.suspected_commit ? (
+                <div className="bg-background/40 border border-border-light rounded-2xl p-4 shadow-sm space-y-3 font-mono">
+                  <div className="flex justify-between items-center border-b border-border-light/50 pb-2">
+                    <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Suspected Code Change</span>
+                    <span className={`text-[9px] font-bold tracking-widest px-2 py-0.5 rounded-full border uppercase ${
+                      incident.suspected_commit.plausibility === 'HIGH'
+                        ? 'bg-primary/10 border-primary/20 text-primary animate-pulse'
+                        : incident.suspected_commit.plausibility === 'MEDIUM'
+                        ? 'bg-primary/5 border-primary/10 text-primary/80'
+                        : incident.suspected_commit.plausibility === 'LOW'
+                        ? 'bg-accent-warm/10 border-accent-warm/20 text-accent-warm'
+                        : 'bg-background border-border-light text-text-muted'
+                    }`}>
+                      {incident.suspected_commit.plausibility} PLAUSIBILITY
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <span className="text-text-primary font-semibold">
+                        Commit:{' '}
+                        <a
+                          href={`https://github.com/${incident.suspected_commit.repo || 'sahilchaudhari32/Halcyon'}/commit/${incident.suspected_commit.sha}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-primary hover:underline hover:text-primary/80 transition-colors"
+                        >
+                          {incident.suspected_commit.sha.substring(0, 7)}
+                        </a>
+                      </span>
+                      <span className="text-text-muted">
+                        by <strong className="text-text-primary">{incident.suspected_commit.author}</strong>
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-text-muted italic font-mono">
+                      • {getRelativeTimestamp(incident.created_at, incident.suspected_commit.timestamp)}
+                    </div>
+
+                    <div className="bg-surface/50 border border-border-light/35 rounded-xl p-2.5 text-text-primary text-[11px] leading-relaxed break-all whitespace-pre-wrap">
+                      {incident.suspected_commit.message}
+                    </div>
+
+                    <div className="text-text-muted text-[11px] leading-relaxed">
+                      <strong className="text-text-primary uppercase tracking-wider text-[10px] block mb-1">AI Reasoning:</strong>
+                      {incident.suspected_commit.reasoning}
+                    </div>
+                  </div>
+                </div>
+              ) : !hasConnection ? (
+                <div className="bg-background/25 border border-dashed border-border-light rounded-2xl p-4.5 text-center font-mono text-xs">
+                  <p className="text-text-muted mb-2.5 leading-relaxed">
+                    Connect GitHub to see code correlation for incidents
+                  </p>
+                  <Link href="/settings">
+                    <a className="text-accent-warm hover:underline font-bold transition-colors">
+                      Configure GitHub Integration &rarr;
+                    </a>
+                  </Link>
+                </div>
+              ) : null}
               <div>
                 <p className="text-xs uppercase tracking-widest text-text-muted font-mono font-bold mb-3">Resolution Trust</p>
                 <TrustMeter
@@ -291,6 +383,17 @@ export default function IncidentDetail({ id }) {
                       rows={4}
                       className="w-full bg-background border border-border-light rounded-2xl p-4 text-text-primary font-mono text-sm leading-relaxed shadow-sm focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/40"
                     />
+                    {incident.suspected_commit && (
+                      <label className="flex items-center gap-2.5 font-mono text-xs text-text-muted cursor-pointer select-none py-1">
+                        <input
+                          type="checkbox"
+                          checked={commitCaused}
+                          onChange={(e) => setCommitCaused(e.target.checked)}
+                          className="w-4 h-4 rounded border-border-light bg-background text-primary focus:ring-primary/40 focus:ring-offset-background cursor-pointer"
+                        />
+                        <span>Confirm this commit caused the incident</span>
+                      </label>
+                    )}
                     <Button
                       onClick={handleResolve}
                       disabled={resolving || !solutionText.trim()}

@@ -2,12 +2,15 @@
 Halcyon Backend — Database Models & Async Engine
 Uses SQLAlchemy 2.x with aiosqlite for non-blocking SQLite.
 """
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 from sqlalchemy import (
     Column, Integer, String, Text, Float, Boolean,
-    DateTime, JSON, ForeignKey, Index
+    DateTime, JSON, ForeignKey, Index, text
 )
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -59,6 +62,7 @@ class Incident(Base):
     summary: Optional[str] = Column(Text, nullable=True)
     affected_components: Optional[str] = Column(JSON, nullable=True)  # list[str]
     confidence_score: Optional[float] = Column(Float, nullable=True)   # 0.0 – 1.0
+    suspected_commit: Optional[dict] = Column(JSON, nullable=True)
 
     # Status & resolution
     is_solved: bool = Column(Boolean, default=False, nullable=False)
@@ -189,6 +193,45 @@ class DecisionLog(Base):
     )
 
 
+class Workspace(Base):
+    """
+    Minimal Workspace model to support per-workspace settings.
+    """
+    __tablename__ = "workspaces"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    name: str = Column(String(255), nullable=False, default="Default Workspace")
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class GitHubConnection(Base):
+    """
+    Stores encrypted GitHub credentials per-workspace.
+    """
+    __tablename__ = "github_connections"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    workspace_id: int = Column(
+        Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    github_token: str = Column(String(500), nullable=False)  # Encrypted
+    repo_owner: str = Column(String(255), nullable=False)
+    repo_name: str = Column(String(255), nullable=False)
+    connected_at: datetime = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    connected_by: str = Column(String(255), nullable=False, default="admin")
+    status: str = Column(String(50), nullable=False, default="connected")  # connected / invalid / disconnected
+
+    workspace = relationship("Workspace")
+
+
 # ── Dependency ────────────────────────────────────────────────────────────────
 
 async def get_db() -> AsyncSession:
@@ -208,3 +251,27 @@ async def init_db() -> None:
     """Create all tables on startup (idempotent)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Fallback migration check to add suspected_commit column if it doesn't exist
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE incidents ADD COLUMN suspected_commit JSON"))
+        except Exception:
+            # Column already exists or database not initialized yet
+            pass
+
+    # Ensure default workspace exists
+    async with AsyncSessionLocal() as session:
+        try:
+            from sqlalchemy import select
+            stmt = select(Workspace).filter(Workspace.id == 1)
+            res = await session.execute(stmt)
+            workspace = res.scalar_one_or_none()
+            if not workspace:
+                workspace = Workspace(id=1, name="Default Workspace")
+                session.add(workspace)
+                await session.commit()
+                logger.info("Created default workspace (ID=1) successfully.")
+        except Exception as e:
+            logger.error(f"Failed to create default workspace: {e}")
+            await session.rollback()

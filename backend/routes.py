@@ -5,18 +5,20 @@ Integrates: Hindsight memory, cascadeflow routing, decision audit trail.
 """
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status, Header
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ai import analyze_log, RoutingMetadata
+from ai import analyze_log, RoutingMetadata, analyze_commit_diff
 from config import settings
-from database import DecisionLog, Incident, IncidentTag, SimilarIncidentRef, get_db
-from memory import is_memory_available, recall_similar, retain_resolution
+from database import DecisionLog, Incident, IncidentTag, SimilarIncidentRef, get_db, GitHubConnection, Workspace
+from github import GitHubClient, GitHubAuthError
+from crypto import encrypt_token, decrypt_token
+from memory import is_memory_available, recall_similar, retain_resolution, retain_code_correlation
 from schemas import (
     AIAnalysisResult,
     IncidentSubmitRequest,
@@ -32,6 +34,10 @@ from schemas import (
     MessageResponse,
     RoutingInfo,
     UpdateIncidentRequest,
+    SuspectedCommitSchema,
+    GitHubConnectRequest,
+    GitHubUpdateRequest,
+    GitHubStatusResponse,
 )
 from utils import (
     find_similar_incidents,
@@ -114,7 +120,12 @@ async def upload_log(file: UploadFile = File(...)):
     status_code=status.HTTP_201_CREATED,
     summary="Submit a new incident for AI analysis (memory-augmented, cost-optimized)",
 )
-async def create_incident(body: IncidentSubmitRequest, db: AsyncSession = Depends(get_db)):
+async def create_incident(
+    body: IncidentSubmitRequest,
+    db: AsyncSession = Depends(get_db),
+    x_github_token: Optional[str] = Header(default=None),
+    x_github_repo: Optional[str] = Header(default=None),
+):
     """
     Halcyon's core intelligence endpoint:
     1. Check Hindsight memory for similar past incidents (fast/free path)
@@ -158,7 +169,135 @@ async def create_incident(body: IncidentSubmitRequest, db: AsyncSession = Depend
         except RuntimeError as e:
             raise HTTPException(status_code=503, detail=str(e))
 
-    # ── Step 3: Save the Incident to DB ──────────────────────────────────
+    # ── Step 3: GitHub Correlation ───────────────────────────────────────
+    suspected_commit = None
+    deploy_related_tag = None
+    commit_decision_logs = []
+
+    # Retrieve stored connection from database
+    stmt = select(GitHubConnection).filter(GitHubConnection.workspace_id == 1)
+    res = await db.execute(stmt)
+    connection = res.scalar_one_or_none()
+
+    github_client = None
+    repo_used = None
+    if connection and connection.status == "connected":
+        try:
+            decrypted_token = decrypt_token(connection.github_token)
+            repo_path = f"{connection.repo_owner}/{connection.repo_name}"
+            github_client = GitHubClient(token=decrypted_token, repo=repo_path)
+            repo_used = repo_path
+        except Exception as e:
+            logger.error(f"Failed to decrypt GitHub token: {e}")
+    else:
+        # Dev local fallback only if config exists
+        token_str = x_github_token if isinstance(x_github_token, str) else None
+        repo_str = x_github_repo if isinstance(x_github_repo, str) else None
+        
+        fallback_token = token_str or settings.github_token
+        fallback_repo = repo_str or settings.github_repo
+        if fallback_repo:
+            github_client = GitHubClient(token=fallback_token, repo=fallback_repo)
+            repo_used = fallback_repo
+            logger.info("Using local dev fallback settings for GitHub client.")
+
+    if github_client and github_client.is_configured:
+        incident_timestamp = datetime.now(timezone.utc)
+        since_time = incident_timestamp - timedelta(minutes=settings.github_lookback_minutes)
+        logger.info("Checking GitHub commits since %s", since_time.isoformat())
+        
+        try:
+            commits = await github_client.fetch_recent_commits(since=since_time)
+        except GitHubAuthError as auth_err:
+            logger.error(f"GitHub connection unauthorized: {auth_err}. Marking connection invalid.")
+            if connection:
+                connection.status = "invalid"
+                await db.flush()
+            commits = []
+        except Exception as exc:
+            logger.error(f"Failed to fetch commits from GitHub: {exc}")
+            commits = []
+
+        if commits:
+            logger.info("Found %d candidate commits in the lookback window.", len(commits))
+            deploy_related_tag = "possibly deploy-related"
+
+            best_commit = None
+            best_plausibility_score = -1
+
+            plausibility_mapping = {
+                "HIGH": 3,
+                "MEDIUM": 2,
+                "LOW": 1,
+                "UNRELATED": 0
+            }
+
+            for commit in commits:
+                sha = commit["sha"]
+                try:
+                    commit_diff_data = await github_client.fetch_commit_diff(sha)
+                except GitHubAuthError as auth_err:
+                    logger.error(f"GitHub connection unauthorized: {auth_err}. Marking connection invalid.")
+                    if connection:
+                        connection.status = "invalid"
+                        await db.flush()
+                    break
+                except Exception as exc:
+                    logger.error(f"Failed to fetch commit diff for {sha}: {exc}")
+                    commit_diff_data = None
+
+                if commit_diff_data:
+                    diff_content = commit_diff_data.get("diff_content", "")
+                    changed_files = commit_diff_data.get("changed_files", [])
+
+                    # LLM analysis for plausibility of this commit explaining the incident
+                    diff_analysis, diff_routing = await analyze_commit_diff(
+                        log_content=body.log_content,
+                        commit_sha=sha,
+                        commit_message=commit["message"],
+                        commit_diff=diff_content
+                    )
+
+                    plausibility = diff_analysis.get("plausibility", "UNRELATED").upper()
+                    reasoning = diff_analysis.get("reason", "No reason provided.")
+
+                    res_suggested = f"Commit diff analysis for SHA {sha}. Plausibility: {plausibility}. Reasoning: {reasoning}"
+                    commit_decision_logs.append((diff_routing, res_suggested))
+
+                    score = plausibility_mapping.get(plausibility, 0)
+                    commit_analysis_record = {
+                        "plausibility": plausibility,
+                        "reasoning": reasoning,
+                        "commit": commit,
+                        "changed_files": changed_files,
+                        "score": score
+                    }
+
+                    if score > best_plausibility_score:
+                        best_plausibility_score = score
+                        best_commit = commit_analysis_record
+
+            if best_commit and best_plausibility_score >= 1:  # LOW, MEDIUM, or HIGH
+                try:
+                    ts_str = best_commit["commit"]["timestamp"]
+                    if ts_str.endswith("Z"):
+                        ts_str = ts_str.replace("Z", "+00:00")
+                    commit_time = datetime.fromisoformat(ts_str)
+                except Exception:
+                    commit_time = datetime.now(timezone.utc)
+
+                suspected_commit = SuspectedCommitSchema(
+                    sha=best_commit["commit"]["sha"],
+                    author=best_commit["commit"]["author"],
+                    message=best_commit["commit"]["message"],
+                    timestamp=commit_time,
+                    changed_files=best_commit["changed_files"],
+                    plausibility=best_commit["plausibility"],
+                    reasoning=best_commit["reasoning"],
+                    repo=repo_used
+                )
+
+    # ── Step 4: Save the Incident to DB ──────────────────────────────────
     incident = Incident(
         title=body.alert_title,
         log_content=body.log_content,
@@ -168,9 +307,14 @@ async def create_incident(body: IncidentSubmitRequest, db: AsyncSession = Depend
         summary=analysis.summary,
         affected_components=analysis.affected_components,
         confidence_score=analysis.confidence_score,
+        suspected_commit=suspected_commit.model_dump(mode="json") if suspected_commit else None
     )
     db.add(incident)
     await db.flush()
+
+    if deploy_related_tag:
+        db.add(IncidentTag(incident_id=incident.id, tag=deploy_related_tag))
+        await db.flush()
 
     routing = RoutingInfo(
         model_used=routing_meta.model_used,
@@ -183,7 +327,7 @@ async def create_incident(body: IncidentSubmitRequest, db: AsyncSession = Depend
         decision_trace=routing_meta.decision_trace,
     )
 
-    # ── Step 4: Log the decision ─────────────────────────────────────────
+    # ── Step 5: Log the decisions ─────────────────────────────────────────
     await _save_decision_log(
         db=db,
         routing_meta=routing_meta,
@@ -192,11 +336,20 @@ async def create_incident(body: IncidentSubmitRequest, db: AsyncSession = Depend
         incident_id=incident.id
     )
 
+    for diff_routing, res_suggested in commit_decision_logs:
+        await _save_decision_log(
+            db=db,
+            routing_meta=diff_routing,
+            incident_id=incident.id,
+            resolution_suggested=res_suggested
+        )
+
     return IncidentSubmitResponse(
         analysis=analysis,
         routing=routing,
         memory=memory_info,
         resolved_from_memory=routing_meta.model_tier == "fast-path",
+        suspected_commit=suspected_commit,
     )
 
 
@@ -352,6 +505,35 @@ async def resolve_incident(id: int, body: MarkSolvedRequest, db: AsyncSession = 
             "⚠️ Could not write resolution for incident #%d to memory.",
             incident.id,
         )
+
+    # ── Write code-correlation to Hindsight memory if confirmed ─────────
+    if body.commit_caused and incident.suspected_commit:
+        sc = incident.suspected_commit
+        sha = sc.get("sha", "")
+        message = sc.get("message", "")
+        plausibility = sc.get("plausibility", "UNKNOWN")
+        reasoning = sc.get("reasoning", "")
+
+        corr_stored = retain_code_correlation(
+            incident_id=incident.id,
+            title=incident.title,
+            root_cause=incident.root_cause or "",
+            commit_sha=sha,
+            commit_message=message,
+            plausibility=plausibility,
+            reasoning=reasoning
+        )
+        if corr_stored:
+            logger.info(
+                "🧠 Code correlation for incident #%d (commit: %s) written to Hindsight memory.",
+                incident.id,
+                sha[:8]
+            )
+        else:
+            logger.warning(
+                "⚠️ Could not write code correlation for incident #%d to memory.",
+                incident.id
+            )
 
     reloaded = await db.execute(
         select(Incident)
@@ -634,6 +816,7 @@ def _build_incident_response(incident: Incident) -> IncidentResponse:
         created_at=incident.created_at,
         updated_at=incident.updated_at,
         tags=[t.tag for t in (incident.tags or [])],
+        suspected_commit=incident.suspected_commit,
         similar_incidents=[
             SimilarIncidentSchema(
                 similar_to_id=r.similar_to_id,
@@ -673,9 +856,10 @@ def _parse_memory_to_analysis(memory_match: dict) -> AIAnalysisResult:
 async def _save_decision_log(
     db: AsyncSession,
     routing_meta: RoutingMetadata,
-    memory_info: MemoryInfo,
-    analysis: AIAnalysisResult,
+    memory_info: Optional[MemoryInfo] = None,
+    analysis: Optional[AIAnalysisResult] = None,
     incident_id: Optional[int] = None,
+    resolution_suggested: Optional[str] = None,
 ) -> None:
     """Persist a decision audit record."""
     try:
@@ -687,18 +871,152 @@ async def _save_decision_log(
             latency_ms=routing_meta.latency_ms,
             escalated=routing_meta.escalated,
             escalation_reason=routing_meta.escalation_reason or None,
-            memory_consulted=memory_info.consulted,
-            memory_hit=memory_info.hit,
-            memory_match_score=memory_info.match_score if memory_info.hit else None,
-            memory_match_content=memory_info.match_content[:500] if memory_info.hit else None,
+            memory_consulted=memory_info.consulted if memory_info else False,
+            memory_hit=memory_info.hit if memory_info else False,
+            memory_match_score=memory_info.match_score if (memory_info and memory_info.hit) else None,
+            memory_match_content=memory_info.match_content[:500] if (memory_info and memory_info.hit) else None,
             cascadeflow_used=routing_meta.cascadeflow_used,
             decision_trace=routing_meta.decision_trace,
-            confidence_score=analysis.confidence_score,
-            severity=analysis.severity,
-            resolution_suggested=analysis.fix_suggestion,
+            confidence_score=analysis.confidence_score if analysis else None,
+            severity=analysis.severity if analysis else None,
+            resolution_suggested=resolution_suggested or (analysis.fix_suggestion if analysis else None),
         )
         db.add(log)
         await db.flush()
         logger.debug("Decision log saved (model=%s, cost=$%.6f)", routing_meta.model_used, routing_meta.cost)
     except Exception as exc:
         logger.error("Failed to save decision log: %s", exc)
+
+
+# ── GitHub Integration Routes ──────────────────────────────────────────────────
+
+@router.post(
+    "/integrations/github/connect",
+    response_model=GitHubStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Connect a GitHub repository for telemetry correlation",
+)
+async def connect_github(body: GitHubConnectRequest, db: AsyncSession = Depends(get_db)):
+    # 1. Validate the token & repo by making a lightweight verify call
+    client = GitHubClient(token=body.token, repo=f"{body.repo_owner}/{body.repo_name}")
+    is_valid = await client.verify_connection()
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to connect. Verify your repository path (owner/repo) and that your personal access token has valid read access."
+        )
+
+    # 2. Save encrypted credentials per workspace (Workspace ID = 1)
+    stmt = select(GitHubConnection).filter(GitHubConnection.workspace_id == 1)
+    res = await db.execute(stmt)
+    conn = res.scalar_one_or_none()
+
+    encrypted_token = encrypt_token(body.token)
+    if conn:
+        conn.github_token = encrypted_token
+        conn.repo_owner = body.repo_owner
+        conn.repo_name = body.repo_name
+        conn.status = "connected"
+        conn.connected_at = datetime.now(timezone.utc)
+    else:
+        conn = GitHubConnection(
+            workspace_id=1,
+            github_token=encrypted_token,
+            repo_owner=body.repo_owner,
+            repo_name=body.repo_name,
+            status="connected",
+            connected_at=datetime.now(timezone.utc)
+        )
+        db.add(conn)
+    await db.flush()
+
+    return GitHubStatusResponse(
+        connected=True,
+        repo_owner=conn.repo_owner,
+        repo_name=conn.repo_name,
+        status=conn.status,
+        connected_at=conn.connected_at
+    )
+
+
+@router.get(
+    "/integrations/github/status",
+    response_model=GitHubStatusResponse,
+    summary="Get the workspace's GitHub integration status",
+)
+async def get_github_status(db: AsyncSession = Depends(get_db)):
+    stmt = select(GitHubConnection).filter(GitHubConnection.workspace_id == 1)
+    res = await db.execute(stmt)
+    conn = res.scalar_one_or_none()
+
+    if conn and conn.status != "disconnected":
+        return GitHubStatusResponse(
+            connected=True,
+            repo_owner=conn.repo_owner,
+            repo_name=conn.repo_name,
+            status=conn.status,
+            connected_at=conn.connected_at
+        )
+
+    return GitHubStatusResponse(connected=False)
+
+
+@router.delete(
+    "/integrations/github/disconnect",
+    response_model=MessageResponse,
+    summary="Disconnect the GitHub integration",
+)
+async def disconnect_github(db: AsyncSession = Depends(get_db)):
+    stmt = delete(GitHubConnection).filter(GitHubConnection.workspace_id == 1)
+    await db.execute(stmt)
+    await db.flush()
+    return MessageResponse(message="GitHub repository disconnected successfully.", success=True)
+
+
+@router.patch(
+    "/integrations/github",
+    response_model=GitHubStatusResponse,
+    summary="Update or rotate GitHub integration credentials",
+)
+async def update_github(body: GitHubUpdateRequest, db: AsyncSession = Depends(get_db)):
+    stmt = select(GitHubConnection).filter(GitHubConnection.workspace_id == 1)
+    res = await db.execute(stmt)
+    conn = res.scalar_one_or_none()
+
+    if not conn or conn.status == "disconnected":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active GitHub integration found to update."
+        )
+
+    new_token = body.token if body.token is not None else decrypt_token(conn.github_token)
+    new_owner = body.repo_owner if body.repo_owner is not None else conn.repo_owner
+    new_repo = body.repo_name if body.repo_name is not None else conn.repo_name
+
+    # Validate settings if changing
+    if body.token is not None or body.repo_owner is not None or body.repo_name is not None:
+        client = GitHubClient(token=new_token, repo=f"{new_owner}/{new_repo}")
+        is_valid = await client.verify_connection()
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Validation failed. The updated credentials or repository are invalid."
+            )
+
+    if body.token is not None:
+        conn.github_token = encrypt_token(body.token)
+    if body.repo_owner is not None:
+        conn.repo_owner = body.repo_owner
+    if body.repo_name is not None:
+        conn.repo_name = body.repo_name
+
+    conn.status = "connected"
+    await db.flush()
+
+    return GitHubStatusResponse(
+        connected=True,
+        repo_owner=conn.repo_owner,
+        repo_name=conn.repo_name,
+        status=conn.status,
+        connected_at=conn.connected_at
+    )

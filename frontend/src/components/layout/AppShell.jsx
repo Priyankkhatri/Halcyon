@@ -1,6 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sun, Moon, Activity } from 'lucide-react';
+
+const GithubIcon = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={props.className}
+    style={{ width: '1.125rem', height: '1.125rem' }}
+    {...props}
+  >
+    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+  </svg>
+);
 import { Sidebar } from './Sidebar';
 import { FloatingDock } from './FloatingDock';
 import Waveform from '../Waveform';
@@ -10,6 +26,16 @@ import { useApp } from '../../context/AppContext';
 export default function AppShell({ children, systemState }) {
   const { t, language, setLanguage } = useApp();
   const [isDark, setIsDark] = useState(false);
+  const [showGithubModal, setShowGithubModal] = useState(false);
+  const [githubRepo, setGithubRepo] = useState(localStorage.getItem('x-github-repo') || '');
+  const [githubToken, setGithubToken] = useState(localStorage.getItem('x-github-token') || '');
+
+  const saveGithubConfig = () => {
+    localStorage.setItem('x-github-repo', githubRepo.trim());
+    localStorage.setItem('x-github-token', githubToken.trim());
+    setShowGithubModal(false);
+    window.location.reload();
+  };
 
   // Initialize theme from saved preference or default to light (as per request)
   useEffect(() => {
@@ -108,6 +134,15 @@ export default function AppShell({ children, systemState }) {
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted/60 font-bold text-[8px] font-mono">&darr;</div>
             </div>
 
+            {/* GitHub Settings button */}
+            <button
+              onClick={() => setShowGithubModal(true)}
+              className="w-9 h-9 rounded-xl bg-surface border border-border-light hover:border-primary/20 flex items-center justify-center text-text-muted hover:text-text-primary transition-all duration-200 cursor-pointer focus:outline-none focus-ring"
+              aria-label="Configure GitHub Integration"
+            >
+              <GithubIcon className="text-primary" />
+            </button>
+
             {/* Config button (styled like a NOC terminal toggle) */}
             <button
               onClick={toggleTheme}
@@ -128,6 +163,75 @@ export default function AppShell({ children, systemState }) {
           {children}
         </main>
       </div>
+
+      {/* GitHub Integration Modal */}
+      {showGithubModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface border border-border-light rounded-3xl p-6 w-full max-w-md shadow-antigravity space-y-6 relative font-mono text-xs">
+            <button
+              onClick={() => setShowGithubModal(false)}
+              className="absolute top-4 right-4 text-text-muted hover:text-text-primary text-xl font-bold cursor-pointer focus:outline-none"
+              aria-label="Close modal"
+            >
+              &times;
+            </button>
+            
+            <div className="space-y-1">
+              <h3 className="font-serif text-lg text-text-primary font-bold flex items-center gap-2">
+                <GithubIcon className="text-primary" style={{ width: '1.25rem', height: '1.25rem' }} />
+                Connect GitHub Repository
+              </h3>
+              <p className="text-[10px] text-text-muted uppercase font-bold tracking-wider">Client-side Telemetry Correlation</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Repository (owner/repo)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. sahilchaudhari32/Halcyon"
+                  value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  className="w-full bg-background border border-border-light rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/40"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Personal Access Token (PAT)</label>
+                <input
+                  type="password"
+                  placeholder="ghp_xxxxxxxxxxxx"
+                  value={githubToken}
+                  onChange={(e) => setGithubToken(e.target.value)}
+                  className="w-full bg-background border border-border-light rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/40"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => {
+                  localStorage.removeItem('x-github-repo');
+                  localStorage.removeItem('x-github-token');
+                  setGithubRepo('');
+                  setGithubToken('');
+                  setShowGithubModal(false);
+                  window.location.reload();
+                }}
+                className="flex-1 py-2 px-4 rounded-xl border border-border-light hover:border-red-400 hover:text-red-400 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer focus:outline-none"
+              >
+                Disconnect
+              </button>
+              <button
+                onClick={saveGithubConfig}
+                className="flex-1 py-2 px-4 rounded-xl bg-primary text-white hover:bg-primary/90 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer focus:outline-none"
+              >
+                Save & Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating navigation dock for mobile viewports */}
       <FloatingDock />

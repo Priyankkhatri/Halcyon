@@ -137,11 +137,15 @@ def recall_similar(log_content: str) -> List[Dict[str, Any]]:
             for item in results:
                 match = _normalize_memory_result(item)
                 if match:
+                    if match.get("metadata", {}).get("type") == "code_correlation":
+                        continue
                     matches.append(match)
         elif hasattr(results, "memories"):
             for item in results.memories:
                 match = _normalize_memory_result(item)
                 if match:
+                    if match.get("metadata", {}).get("type") == "code_correlation":
+                        continue
                     matches.append(match)
 
         # Sort by score descending
@@ -290,3 +294,63 @@ def _normalize_memory_result(item: Any) -> Optional[Dict[str, Any]]:
 def is_memory_available() -> bool:
     """Check if the Hindsight memory system is available and configured."""
     return _get_client() is not None
+
+
+def retain_code_correlation(
+    incident_id: int,
+    title: str,
+    root_cause: str,
+    commit_sha: str,
+    commit_message: str,
+    plausibility: str,
+    reasoning: str,
+) -> bool:
+    """
+    Write a code correlation record into Hindsight memory.
+    Connects a specific type of code change to a specific type of incident.
+    """
+    client = _get_client()
+    if client is None:
+        return False
+
+    # Compose a structured memory document representing the correlation
+    memory_content = (
+        f"CODE CORRELATION RESOLUTION\n"
+        f"Incident Title: {title}\n"
+        f"Incident Root Cause: {root_cause}\n"
+        f"Suspected Commit SHA: {commit_sha}\n"
+        f"Commit Message: {commit_message}\n"
+        f"Plausibility Judgment: {plausibility}\n"
+        f"Correlation Reasoning: {reasoning}\n"
+        f"Resolved At: {datetime.now(timezone.utc).isoformat()}\n"
+    )
+
+    metadata = {
+        "type": "code_correlation",
+        "incident_id": incident_id,
+        "commit_sha": commit_sha,
+        "commit_message": commit_message,
+        "plausibility": plausibility,
+        "reasoning": reasoning,
+        "root_cause": root_cause,
+    }
+
+    try:
+        client.retain(
+            bank_id=settings.hindsight_bank_id,
+            content=memory_content,
+            metadata=metadata
+        )
+        logger.info(
+            "🧠 Hindsight retain: stored code correlation for incident #%d (commit: %s)",
+            incident_id,
+            commit_sha[:8],
+        )
+        return True
+    except Exception as exc:
+        logger.error(
+            "Hindsight retain failed for code correlation (incident #%d): %s",
+            incident_id,
+            exc,
+        )
+        return False

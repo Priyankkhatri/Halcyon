@@ -48,6 +48,7 @@ class CascadeResult:
 
 _REQUIRED_FIELDS = {"root_cause", "severity", "fix_suggestion", "summary",
                     "affected_components", "confidence_score"}
+_DIFF_FIELDS = {"plausibility", "reason"}
 
 def _score_draft(text: str) -> float:
     """
@@ -60,6 +61,13 @@ def _score_draft(text: str) -> float:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
         return 0.0   # Invalid JSON → must escalate
+
+    # Check if this matches a diff analysis format
+    if all(field in data for field in _DIFF_FIELDS):
+        plausibility = str(data.get("plausibility", "")).upper()
+        plausibility_ok = 1.0 if plausibility in {"HIGH", "MEDIUM", "LOW", "UNRELATED"} else 0.0
+        reason_ok = 1.0 if isinstance(data.get("reason"), str) and len(data.get("reason", "").strip()) > 0 else 0.0
+        return round((plausibility_ok * 0.5) + (reason_ok * 0.5), 3)
 
     present = _REQUIRED_FIELDS & set(data.keys())
     field_score = len(present) / len(_REQUIRED_FIELDS)

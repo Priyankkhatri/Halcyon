@@ -7,6 +7,7 @@ import IncidentDetail from './components/IncidentDetail';
 import MemoryView from './components/MemoryView';
 import AuditView from './components/AuditView';
 import BillingView from './components/BillingView';
+import SettingsView from './components/SettingsView';
 
 function App() {
   const [inApp, setInApp] = useState(false);
@@ -33,6 +34,9 @@ function App() {
         </Route>
         <Route path="/billing">
           <BillingView />
+        </Route>
+        <Route path="/settings">
+          <SettingsView />
         </Route>
         <Route>
           <div className="text-center py-20 text-halcyon-text-muted">404 - Not Found</div>

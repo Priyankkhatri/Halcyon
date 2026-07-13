@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useRoute } from 'wouter';
 import { motion } from 'framer-motion';
-import { Activity, Cpu, FileText, Shield } from 'lucide-react';
+import { Activity, Cpu, FileText, Shield, Settings } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useApp } from '../../context/AppContext';
 
@@ -11,7 +11,8 @@ export const Sidebar = () => {
   const navItems = [
     { path: '/', label: t('sidebar.incFeed'), icon: Activity },
     { path: '/memory', label: t('sidebar.hindsight'), icon: Cpu },
-    { path: '/audit', label: t('sidebar.audit'), icon: FileText }
+    { path: '/audit', label: t('sidebar.audit'), icon: FileText },
+    { path: '/settings', label: t('sidebar.settings') || 'Settings', icon: Settings }
   ];
 
   return (
