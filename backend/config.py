@@ -20,10 +20,11 @@ class Settings(BaseSettings):
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
 
-    # Local Ollama Provider
+    # Local Ollama Provider / HF Serverless API
     ollama_enabled: bool = Field(default=False, alias="OLLAMA_ENABLED")
     ollama_url: str = Field(default="http://localhost:11434", alias="OLLAMA_URL")
     ollama_model: str = Field(default="halcyon-llama3.2-3b", alias="OLLAMA_MODEL")
+    ollama_token: Optional[str] = Field(default=None, alias="OLLAMA_TOKEN")
 
     # Hindsight — Agent Memory
     hindsight_url: str = Field(default="http://localhost:8888", alias="HINDSIGHT_URL")

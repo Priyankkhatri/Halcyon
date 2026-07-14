@@ -433,6 +433,10 @@ async def _analyze_with_ollama(log_content: str) -> tuple[AIAnalysisResult, Rout
     start = time.perf_counter()
 
     import httpx
+    headers = {}
+    if settings.ollama_token:
+        headers["Authorization"] = f"Bearer {settings.ollama_token}"
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -446,6 +450,7 @@ async def _analyze_with_ollama(log_content: str) -> tuple[AIAnalysisResult, Rout
                     "temperature": 0.2,
                     "max_tokens": 1024,
                 },
+                headers=headers,
                 timeout=60.0,
             )
             response.raise_for_status()
