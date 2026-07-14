@@ -1,0 +1,10 @@
+.git/
+.venv/
+ft_venv/
+models/
+outputs/
+unsloth_compiled_cache/
+backend/
+node_modules/
+frontend/node_modules/
+frontend/dist/
