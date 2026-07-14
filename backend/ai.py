@@ -645,3 +645,70 @@ async def analyze_commit_diff(
     except Exception as exc:
         logger.error("Groq API error in commit analysis: %s", exc)
         return {"plausibility": "UNRELATED", "reason": f"Analysis failed: {exc}"}, metadata
+
+
+_SYNTHETIC_LOG_SYSTEM_PROMPT = """
+You are a Python debugging expert and a chaos engineering tool.
+Your task is to analyze the provided git commit diff and generate a realistic Python traceback (crash log) that would plausibly be caused by the bugs introduced in the commit.
+If the commit does not introduce any obvious bugs, generate a plausible unrelated system error (like a database timeout or out-of-memory error) to serve as a simulated incident.
+
+Format constraints:
+- Return ONLY the raw traceback or log string.
+- Do NOT wrap it in markdown formatting or ``` blocks.
+- Do NOT include any explanations or conversational text.
+"""
+
+
+def _build_synthetic_log_prompt(diff_content: str, commit_message: str, changed_files: list) -> str:
+    max_diff_chars = 4000
+    if len(diff_content) > max_diff_chars:
+        diff_content = diff_content[:max_diff_chars] + "\n... [DIFF TRUNCATED] ...\n"
+    
+    files_str = ", ".join(changed_files)
+    
+    return f"""--- COMMIT MESSAGE ---
+{commit_message}
+
+--- CHANGED FILES ---
+{files_str}
+
+--- COMMIT DIFF ---
+{diff_content}
+
+Generate the raw crash log now:"""
+
+
+async def generate_synthetic_crash_log(
+    diff_content: str,
+    commit_message: str,
+    changed_files: list,
+) -> Optional[str]:
+    """
+    Generate a realistic crash log based on a commit diff using Groq.
+    Returns None if generation fails or no API key is set.
+    """
+    if _groq_client is None:
+        return None
+
+    prompt = _build_synthetic_log_prompt(diff_content, commit_message, changed_files)
+    
+    try:
+        response = await asyncio.to_thread(
+            _groq_client.chat.completions.create,
+            model=settings.draft_model, # Use the faster model for log generation
+            messages=[
+                {"role": "system", "content": _SYNTHETIC_LOG_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7, # Slightly higher temperature for realistic variance
+            max_tokens=512,
+        )
+        
+        raw_text = response.choices[0].message.content
+        # Clean up any accidental markdown
+        cleaned = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
+        cleaned = re.sub(r"\n```$", "", cleaned).strip()
+        return cleaned
+    except Exception as exc:
+        logger.error("Failed to generate synthetic crash log: %s", exc)
+        return None

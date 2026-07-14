@@ -8,7 +8,7 @@ from database import AsyncSessionLocal, User, GitHubConnection
 from github import GitHubClient, GitHubAuthError
 from crypto import decrypt_token
 from routes import create_incident, IncidentSubmitRequest
-from ai import _groq_client
+from ai import _groq_client, generate_synthetic_crash_log
 
 logger = logging.getLogger("halcyon.github_monitor")
 
@@ -21,6 +21,15 @@ async def generate_crash_log_from_diff(diff_content: str, commit_message: str, c
     Uses the LLM (if configured) or a rule-based fallback to generate
     a realistic traceback log representing a crash caused by the commit diff.
     """
+    # ── LLM-Based Synthetic Log Generation ──
+    try:
+        synthetic_log = await generate_synthetic_crash_log(diff_content, commit_message, changed_files)
+        if synthetic_log:
+            logger.info("Successfully generated synthetic crash log using LLM.")
+            return synthetic_log
+    except Exception as e:
+        logger.warning(f"Failed to generate synthetic crash log using LLM: {e}. Falling back to rule-based.")
+
     # ── Rule-Based Traceback Generator (Fallback / Mock Mode) ──
     # If the user changed connection.py (as in the screenshot), generate the NameError
     for filename in changed_files:
