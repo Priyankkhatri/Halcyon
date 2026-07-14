@@ -648,14 +648,14 @@ async def analyze_commit_diff(
 
 
 _SYNTHETIC_LOG_SYSTEM_PROMPT = """
-You are a Python debugging expert and a chaos engineering tool.
-Your task is to analyze the provided git commit diff and generate a realistic Python traceback (crash log) that would plausibly be caused by the bugs introduced in the commit.
+You are a software debugging expert and a chaos engineering tool.
+Your task is to analyze the provided git commit diff and generate a realistic crash log or traceback (e.g., Python traceback, JavaScript/React error, Node.js exception, build failure) that would plausibly be caused by the bugs introduced in the commit. Match the language and environment of the changed files.
 If the commit does not introduce any obvious bugs, generate a plausible unrelated system error (like a database timeout or out-of-memory error) to serve as a simulated incident.
 
 Format constraints:
 - Return ONLY the raw traceback or log string.
 - Do NOT wrap it in markdown formatting or ``` blocks.
-- Do NOT include any explanations or conversational text.
+- Do NOT include any explanations, conversational text, or reasoning blocks (e.g., no <think> tags).
 """
 
 
@@ -705,6 +705,8 @@ async def generate_synthetic_crash_log(
         )
         
         raw_text = response.choices[0].message.content
+        # Remove <think> blocks if present
+        raw_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
         # Clean up any accidental markdown
         cleaned = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
         cleaned = re.sub(r"\n```$", "", cleaned).strip()
