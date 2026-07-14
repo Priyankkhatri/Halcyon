@@ -38,3 +38,9 @@ backend/uploads/
 .DS_Store
 Thumbs.db
 .vercel
+
+# ── Local AI models and training caches ──────────────────────
+models/
+outputs/
+unsloth_compiled_cache/
+ft_venv/

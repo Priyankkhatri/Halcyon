@@ -419,6 +419,69 @@ async def _analyze_with_groq(
         raise RuntimeError(f"AI analysis failed: {exc}") from exc
 
 
+# ── Local Ollama Analysis Path ───────────────────────────────────────────────
+
+async def _analyze_with_ollama(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
+    """Run analysis locally through Ollama's OpenAI-compatible endpoint."""
+    model_name = settings.ollama_model
+    metadata = RoutingMetadata(
+        model_used=model_name,
+        model_tier="local-ollama",
+        cascadeflow_used=False,
+    )
+    prompt = _build_prompt(log_content)
+    start = time.perf_counter()
+
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.ollama_url}/v1/chat/completions",
+                json={
+                    "model": model_name,
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 1024,
+                },
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            res_data = response.json()
+
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        metadata.latency_ms = round(elapsed_ms, 1)
+
+        # Extract usage for local cost estimation (zero cost, but track tokens)
+        usage = res_data.get("usage", {}) or {}
+        total_tokens = usage.get("total_tokens", 0)
+        metadata.cost = 0.0  # local run is free!
+
+        metadata.decision_trace = {
+            "model_used": model_name,
+            "provider": "ollama",
+            "latency_ms": metadata.latency_ms,
+            "cost": 0.0,
+            "total_tokens": total_tokens,
+        }
+
+        raw_text = res_data["choices"][0]["message"]["content"]
+        analysis = _parse_response(raw_text)
+
+        logger.info(
+            "Local Ollama analysis complete: model=%s, latency=%.0fms",
+            model_name,
+            metadata.latency_ms,
+        )
+        return analysis, metadata
+
+    except Exception as exc:
+        logger.error("Local Ollama API error: %s", exc)
+        raise RuntimeError(f"Local Ollama analysis failed: {exc}") from exc
+
+
 # ── Compliance & Fast-Path ──────────────────────────────────────────────────
 
 async def _analyze_with_compliance_model(log_content: str) -> tuple[AIAnalysisResult, RoutingMetadata]:
@@ -483,7 +546,14 @@ async def analyze_log(log_content: str, sensitive: bool = False) -> tuple[AIAnal
         )
         return known_info, metadata
 
-    # 2. No API key → mock
+    # 2. Local Ollama serving (if enabled)
+    if settings.ollama_enabled:
+        try:
+            return await _analyze_with_ollama(log_content)
+        except Exception as exc:
+            logger.warning("Local Ollama analysis failed, falling back: %s", exc)
+
+    # 3. No API key → mock
     if _groq_client is None:
         logger.info("Using mock AI analysis (no API key).")
         metadata = RoutingMetadata(
@@ -495,11 +565,11 @@ async def analyze_log(log_content: str, sensitive: bool = False) -> tuple[AIAnal
         )
         return _mock_analysis(log_content), metadata
 
-    # 3. cascadeflow available → use it
+    # 4. cascadeflow available → use it
     if _cascade_agent is not None:
         return await _analyze_with_cascade(log_content)
 
-    # 4. Direct Groq fallback
+    # 5. Direct Groq fallback
     return await _analyze_with_groq(log_content)
 
 
