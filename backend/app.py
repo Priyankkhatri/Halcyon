@@ -34,9 +34,12 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Halcyon backend starting up…")
     await init_db()
     logger.info("✅ Database initialized.")
-    seeded = await seed_demo_data()
-    if seeded:
-        logger.info("✅ Seeded %d demo incidents and audit logs.", seeded)
+    if settings.seed_demo_data:
+        seeded = await seed_demo_data()
+        if seeded:
+            logger.info("✅ Seeded %d demo incidents and audit logs.", seeded)
+    else:
+        logger.info("ℹ️ Seeding disabled; starting with empty database.")
     await init_memory()
     logger.info("✅ Memory system initialized.")
     

@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     compliance_model: str = Field(default="local/llama-3.1-8b", alias="COMPLIANCE_MODEL")
 
     # Server
+    seed_demo_data: bool = Field(default=False, alias="SEED_DEMO_DATA")
     host: str = Field(default="0.0.0.0", alias="HOST")
     port: int = Field(default=8000, alias="PORT")
     debug: bool = Field(default=True, alias="DEBUG")
