@@ -15,13 +15,13 @@
 }
 
 .dark {
-  --background: #090D19;
-  --surface: #0F1322;
+  --background: #030614;
+  --surface: #0B1120;
   --text-primary: #F8FAFC;
   --text-muted: #94A3B8;
   --border-light: #1E293B;
   --shadow-val-antigravity: 0 10px 30px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.035);
-  --shadow-val-antigravity-hover: 0 20px 40px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-val-antigravity-hover: 0 20px 40px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 25px rgba(32, 201, 151, 0.1);
 }
 
 @layer base {

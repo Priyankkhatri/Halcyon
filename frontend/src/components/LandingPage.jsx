@@ -152,10 +152,13 @@ export default function LandingPage({ onEnterApp }) {
       </div>
 
       {/* Top Navigation */}
-      <header className="fixed top-0 left-0 right-0 h-20 bg-background/80 backdrop-blur-md z-40 border-b border-border-light/40 px-4 sm:px-6 lg:px-12 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src={logo} alt="Halcyon Logo" className="w-8 h-8 rounded-lg object-cover border border-border-light/40" />
-          <span className="font-serif text-xl sm:text-2xl font-semibold tracking-tight text-text-primary">Halcyon</span>
+      <header className="fixed top-0 left-0 right-0 h-20 bg-background/60 backdrop-blur-xl z-40 border-b border-border-light/20 px-4 sm:px-6 lg:px-12 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="relative">
+            <div className="absolute inset-0 bg-accent-warm/40 blur-md rounded-full group-hover:bg-accent-warm/60 transition-colors duration-500" />
+            <img src={logo} alt="Halcyon Logo" className="relative w-8 h-8 rounded-lg object-cover border border-border-light/40 shadow-antigravity" />
+          </div>
+          <span className="font-serif text-xl sm:text-2xl font-semibold tracking-tight text-text-primary group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-text-primary group-hover:to-accent-warm transition-all duration-300">Halcyon</span>
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">
@@ -198,7 +201,7 @@ export default function LandingPage({ onEnterApp }) {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="text-4xl sm:text-6xl md:text-8xl font-serif text-text-primary tracking-wide mb-6 sm:mb-8 leading-tight max-w-4xl"
+          className="text-4xl sm:text-6xl md:text-8xl font-serif text-transparent bg-clip-text bg-gradient-to-br from-text-primary via-text-primary to-text-muted tracking-wide mb-6 sm:mb-8 leading-tight max-w-4xl"
         >
           {t('landing.titlePrefix').split(' ').map((word, idx) => (
             <motion.span key={idx} variants={wordVariants} className="inline-block mr-3 sm:mr-4">
@@ -208,7 +211,7 @@ export default function LandingPage({ onEnterApp }) {
           <br className="hidden sm:block" />
           <motion.span 
             variants={wordVariants}
-            className="italic font-normal text-primary inline-block"
+            className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-warm inline-block drop-shadow-sm"
           >
             {t('landing.titleSuffix')}
           </motion.span>

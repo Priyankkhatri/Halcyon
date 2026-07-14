@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import LandingPage from './components/LandingPage';
 import AuthForm from './components/AuthForm';
 import GithubOnboarding from './components/GithubOnboarding';
@@ -48,27 +48,40 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    if (showAuthForm) {
-      return (
-        <div className="relative">
-          <button 
-            onClick={() => setShowAuthForm(false)} 
-            className="absolute top-6 left-6 z-20 font-mono text-[10px] uppercase font-bold tracking-wider px-3.5 py-2 rounded-xl bg-surface border border-border-light text-text-muted hover:text-text-primary transition-all cursor-pointer shadow-sm"
-          >
-            &larr; Back
-          </button>
-          <AuthForm onAuthSuccess={() => setIsAuthenticated(true)} />
-        </div>
-      );
-    }
-    return <LandingPage onEnterApp={() => setShowAuthForm(true)} />;
+    return (
+      <Switch>
+        <Route path="/">
+          {showAuthForm ? (
+            <div className="relative">
+              <button 
+                onClick={() => setShowAuthForm(false)} 
+                className="absolute top-6 left-6 z-20 font-mono text-[10px] uppercase font-bold tracking-wider px-3.5 py-2 rounded-xl bg-surface border border-border-light text-text-muted hover:text-text-primary transition-all cursor-pointer shadow-sm"
+              >
+                &larr; Back
+              </button>
+              <AuthForm onAuthSuccess={() => setIsAuthenticated(true)} />
+            </div>
+          ) : (
+            <LandingPage onEnterApp={() => setShowAuthForm(true)} />
+          )}
+        </Route>
+        <Route>
+          <Redirect to="/" />
+        </Route>
+      </Switch>
+    );
   }
 
   if (!isGithubConnected) {
     return (
-      <GithubOnboarding 
-        onConnectionSuccess={() => setIsGithubConnected(true)} 
-      />
+      <Switch>
+        <Route path="/dashboard">
+          <GithubOnboarding onConnectionSuccess={() => setIsGithubConnected(true)} />
+        </Route>
+        <Route>
+          <Redirect to="/dashboard" />
+        </Route>
+      </Switch>
     );
   }
 
@@ -76,6 +89,9 @@ function App() {
     <AppShell systemState={globalState}>
       <Switch>
         <Route path="/">
+          <Redirect to="/dashboard" />
+        </Route>
+        <Route path="/dashboard">
           <Dashboard setGlobalState={setGlobalState} />
         </Route>
         <Route path="/incident/:id">

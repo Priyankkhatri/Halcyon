@@ -11,16 +11,16 @@ export default {
         background: 'var(--background)',
         surface: 'var(--surface)',
         primary: {
-          DEFAULT: '#E8935B', // kingfisher-amber
-          hover: '#D7824A'
+          DEFAULT: '#FF6B6B', // vibrant neon coral/red
+          hover: '#FF4757'
         },
         secondary: {
-          DEFAULT: '#A6B4C4',
-          hover: '#95A3B3'
+          DEFAULT: '#4DABF7', // bright blue
+          hover: '#339AF0'
         },
         'accent-warm': {
-          DEFAULT: '#2EC4B6', // kingfisher-teal
-          hover: '#1FB3A5'
+          DEFAULT: '#20C997', // neon mint/teal
+          hover: '#12B886'
         },
         'text-primary': 'var(--text-primary)',
         'text-muted': 'var(--text-muted)',
@@ -34,7 +34,13 @@ export default {
       },
       boxShadow: {
         antigravity: 'var(--shadow-val-antigravity)',
-        'antigravity-hover': 'var(--shadow-val-antigravity-hover)'
+        'antigravity-hover': 'var(--shadow-val-antigravity-hover)',
+        'neon-primary': '0 0 15px rgba(255, 107, 107, 0.4), 0 0 30px rgba(255, 107, 107, 0.2)',
+        'neon-accent': '0 0 15px rgba(32, 201, 151, 0.4), 0 0 30px rgba(32, 201, 151, 0.2)'
+      },
+      backgroundImage: {
+        'glass-gradient': 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)',
+        'glass-gradient-dark': 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.005) 100%)',
       }
     },
   },

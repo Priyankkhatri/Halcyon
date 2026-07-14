@@ -9,7 +9,7 @@ export const Sidebar = () => {
   const { t, subscription, limitCount, maxLogs } = useApp();
   
   const navItems = [
-    { path: '/', label: t('sidebar.incFeed'), icon: Activity },
+    { path: '/dashboard', label: t('sidebar.incFeed'), icon: Activity },
     { path: '/memory', label: t('sidebar.hindsight'), icon: Cpu },
     { path: '/audit', label: t('sidebar.audit'), icon: FileText },
     { path: '/settings', label: t('sidebar.settings') || 'Settings', icon: Settings }
