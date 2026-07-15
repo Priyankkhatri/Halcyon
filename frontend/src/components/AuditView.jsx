@@ -11,15 +11,15 @@ import {
   ChevronDown,
   ChevronUp,
   Server,
-  Zap
+  Zap,
+  Copy
 } from 'lucide-react';
 import { api } from '../api';
-import Card from './ui/Card';
 
 const COLORS = {
-  memory: '#8CA596',     // Sage Green (Afterlife accent-warm)
-  escalated: '#E29A76',  // Apricot (Afterlife primary)
-  neutral: '#A6B4C4'     // Dusty Blue (Afterlife secondary)
+  memory: '#ffffff',     // White
+  escalated: '#a1a1aa',  // zinc-400
+  neutral: '#3f3f46'     // zinc-700
 };
 
 export default function AuditView() {
@@ -28,6 +28,7 @@ export default function AuditView() {
   const [loading, setLoading] = useState(true);
   const [chartMetric, setChartMetric] = useState('cost'); // 'cost' | 'latency'
   const [expandedId, setExpandedId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,7 +38,6 @@ export default function AuditView() {
           api.getDecisions('?page_size=100')
         ]);
         setStats(statData);
-        // Store chronological decisions for charts
         setDecisions(decisionData.decisions?.reverse() || []); 
       } catch (err) {
         console.error(err);
@@ -66,115 +66,120 @@ export default function AuditView() {
     ].filter(d => d.value > 0);
   }, [stats]);
 
-  // Derived Telemetry Savings Metrics
   const memoryHitsCount = stats?.ai_decisions?.memory_hits || 0;
   
-  // 18 mins MTTR bypassed per memory hit (saved from on-call escalation)
   const downtimeBypassedMins = memoryHitsCount * 18;
   const downtimeSavedText = downtimeBypassedMins >= 60 
     ? `${(downtimeBypassedMins / 60).toFixed(1)} hrs`
     : `${downtimeBypassedMins} mins`;
 
-  // Standard LLM escalation costs ~$0.045 per verification cycle, whereas fast path is near zero
   const estimatedSavingsDollars = memoryHitsCount * 0.045;
 
   const toggleRow = (id) => {
     setExpandedId(prev => prev === id ? null : id);
   };
 
+  const copyToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   if (loading) {
-    return <div className="animate-pulse h-96 bg-surface rounded-3xl max-w-5xl mx-auto mt-8 border border-border-light shadow-md"></div>;
+    return <div className="animate-pulse h-96 bg-[#09090b] border border-zinc-800 rounded-lg max-w-5xl mx-auto mt-8"></div>;
   }
 
-  // Reverse decisions for chronological table list (newest first)
   const tableDecisions = [...decisions].reverse();
 
   return (
-    <div className="max-w-5xl mx-auto py-2 sm:py-4">
+    <div className="max-w-5xl mx-auto py-2 sm:py-6 text-zinc-50 font-sans">
+      
       {/* Page Header */}
-      <div className="mb-8 border-b border-border-light pb-6">
-        <h1 className="text-3xl sm:text-4xl font-sans text-text-primary tracking-wide mb-2 flex items-center gap-3">
-          <Activity className="w-8 h-8 text-primary animate-pulse" />
-          <span>Audit & Cost Trail</span>
+      <div className="mb-10 pb-6 border-b border-zinc-800">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+          Audit & Cost Trail
         </h1>
-        <p className="text-text-muted font-light text-sm">
-          Live telemetry verifying how local institutional memory optimizes incident MTTR and AI inference expenses.
+        <p className="text-zinc-400 text-base max-w-3xl">
+          Live telemetry verifying how local historical database optimizes incident MTTR and inference expenses.
+          Follow the action logs below to audit automated routing.
         </p>
       </div>
 
       {/* Analytics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <h2 className="text-xl font-semibold tracking-tight mb-4">Overview</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         
         {/* Cumulative cost */}
-        <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={false}>
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">API Cost Incurred</span>
-            <DollarSign className="w-4 h-4 text-primary" />
+        <div className="flex flex-col p-5 border border-zinc-800 rounded-lg bg-[#09090b]">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-zinc-400">API Cost Incurred</span>
+            <DollarSign className="w-4 h-4 text-zinc-500" />
           </div>
-          <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1.5">
+          <h2 className="text-2xl font-bold tracking-tight mb-1">
             ${stats?.ai_decisions?.total_cost?.toFixed(5) || '0.00000'}
           </h2>
-          <span className="text-[10px] font-mono text-text-muted uppercase">Cumulative Groq Fees</span>
-        </Card>
+          <span className="text-xs text-zinc-500">Cumulative Fees</span>
+        </div>
 
         {/* Cost saved */}
-        <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={false}>
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Estimated Savings</span>
-            <TrendingUp className="w-4 h-4 text-accent-warm animate-bounce" />
+        <div className="flex flex-col p-5 border border-zinc-800 rounded-lg bg-[#09090b]">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-zinc-400">Estimated Savings</span>
+            <TrendingUp className="w-4 h-4 text-zinc-500" />
           </div>
-          <h2 className="text-3xl font-sans text-accent-warm font-bold tracking-tight mb-1.5">
+          <h2 className="text-2xl font-bold tracking-tight mb-1">
             +${estimatedSavingsDollars.toFixed(3)}
           </h2>
-          <span className="text-[10px] font-mono text-text-muted uppercase">Bypassed LLM Calls</span>
-        </Card>
+          <span className="text-xs text-zinc-500">Bypassed LLM Calls</span>
+        </div>
 
         {/* Downtime Bypassed */}
-        <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={false}>
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">MTTR Saved</span>
-            <Clock className="w-4 h-4 text-[#2EC4B6]" />
+        <div className="flex flex-col p-5 border border-zinc-800 rounded-lg bg-[#09090b]">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-zinc-400">MTTR Saved</span>
+            <Clock className="w-4 h-4 text-zinc-500" />
           </div>
-          <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1.5">
+          <h2 className="text-2xl font-bold tracking-tight mb-1">
             {downtimeSavedText}
           </h2>
-          <span className="text-[10px] font-mono text-text-muted uppercase">On-Call Time Bypassed</span>
-        </Card>
+          <span className="text-xs text-zinc-500">On-Call Time Bypassed</span>
+        </div>
 
         {/* Hit Rate */}
-        <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={false}>
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Memory Hit Rate</span>
-            <Cpu className="w-4 h-4 text-secondary" />
+        <div className="flex flex-col p-5 border border-zinc-800 rounded-lg bg-[#09090b]">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-zinc-400">Memory Hit Rate</span>
+            <Cpu className="w-4 h-4 text-zinc-500" />
           </div>
-          <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1.5">
+          <h2 className="text-2xl font-bold tracking-tight mb-1">
             {stats?.ai_decisions?.memory_hit_rate || '0.0'}%
           </h2>
-          <span className="text-[10px] font-mono text-text-muted uppercase">Fast Path Resolution</span>
-        </Card>
+          <span className="text-xs text-zinc-500">Fast Path Resolution</span>
+        </div>
       </div>
 
       {/* Main Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+      <h2 className="text-xl font-semibold tracking-tight mb-4">Telemetry Metrics</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
         {/* Trend Area Chart */}
-        <Card className="lg:col-span-2 flex flex-col p-6" animateHover={false}>
+        <div className="lg:col-span-2 flex flex-col p-6 border border-zinc-800 rounded-lg bg-[#09090b]">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-            <h3 className="font-sans text-2xl text-text-primary tracking-wide">
+            <h3 className="font-semibold text-lg text-zinc-50 tracking-tight">
               {chartMetric === 'cost' ? 'Inference Cost Trend' : 'Resolution Latency Trend'}
             </h3>
             {/* Chart Tab Toggles */}
-            <div className="flex bg-background border border-border-light p-1.5 rounded-xl font-mono text-[10px] font-bold">
+            <div className="flex bg-zinc-950 border border-zinc-800 p-1 rounded-md text-xs font-medium">
               <button 
                 onClick={() => setChartMetric('cost')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${chartMetric === 'cost' ? 'bg-accent-warm/15 text-accent-warm border border-accent-warm/25 shadow-sm' : 'text-text-muted border border-transparent'}`}
+                className={`px-3 py-1.5 rounded-sm transition-all cursor-pointer ${chartMetric === 'cost' ? 'bg-zinc-800 text-zinc-50 shadow-sm' : 'text-zinc-400 hover:text-zinc-300'}`}
               >
-                COST ($)
+                Cost
               </button>
               <button 
                 onClick={() => setChartMetric('latency')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${chartMetric === 'latency' ? 'bg-accent-warm/15 text-accent-warm border border-accent-warm/25 shadow-sm' : 'text-text-muted border border-transparent'}`}
+                className={`px-3 py-1.5 rounded-sm transition-all cursor-pointer ${chartMetric === 'latency' ? 'bg-zinc-800 text-zinc-50 shadow-sm' : 'text-zinc-400 hover:text-zinc-300'}`}
               >
-                LATENCY (MS)
+                Latency
               </button>
             </div>
           </div>
@@ -185,123 +190,117 @@ export default function AuditView() {
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={chartMetric === 'cost' ? COLORS.memory : COLORS.neutral} stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor={chartMetric === 'cost' ? COLORS.memory : COLORS.neutral} stopOpacity={0}/>
+                      <stop offset="5%" stopColor={COLORS.memory} stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor={COLORS.memory} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickMargin={12} />
+                  <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
                   <YAxis 
-                    stroke="var(--text-muted)" 
-                    fontSize={11} 
+                    stroke="#71717a" 
+                    fontSize={12} 
                     tickLine={false} 
                     axisLine={false} 
                     tickFormatter={(val) => chartMetric === 'cost' ? `$${val.toFixed(4)}` : `${val.toFixed(0)}ms`} 
                     tickMargin={12} 
                   />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', fontFamily: 'monospace', borderRadius: '16px', boxShadow: 'var(--shadow-val-antigravity)' }}
-                    itemStyle={{ color: chartMetric === 'cost' ? COLORS.memory : COLORS.neutral, fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#fafafe', borderRadius: '6px' }}
+                    itemStyle={{ color: '#ffffff', fontWeight: '500' }}
                     formatter={(value) => chartMetric === 'cost' ? [`$${value.toFixed(5)}`, 'Cost'] : [`${value.toFixed(0)} ms`, 'Latency']}
                   />
                   <Area 
                     type="monotone" 
                     dataKey={chartMetric === 'cost' ? 'cost' : 'latency'} 
-                    stroke={chartMetric === 'cost' ? COLORS.memory : COLORS.neutral} 
-                    strokeWidth={3} 
+                    stroke={COLORS.memory} 
+                    strokeWidth={2} 
                     fillOpacity={1} 
                     fill="url(#colorCost)" 
                   />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-text-muted font-medium">No telemetry data recorded yet.</div>
+              <div className="h-full flex items-center justify-center text-zinc-500 text-sm">No telemetry data recorded yet.</div>
             )}
           </div>
-        </Card>
+        </div>
 
         {/* Resolution Path Pie Chart */}
-        <Card className="flex flex-col p-6 animateHover" animateHover={false}>
-          <h3 className="font-sans text-2xl text-text-primary tracking-wide mb-4">Routing Share</h3>
+        <div className="flex flex-col p-6 border border-zinc-800 rounded-lg bg-[#09090b]">
+          <h3 className="font-semibold text-lg tracking-tight mb-4">Routing Share</h3>
           <div className="flex-1 flex items-center justify-center min-h-[200px]">
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none">
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={90} paddingAngle={2} dataKey="value" stroke="none">
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-light)', fontFamily: 'monospace', borderRadius: '16px', boxShadow: 'var(--shadow-val-antigravity)' }}
+                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px' }}
+                    itemStyle={{ color: '#fff' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-text-muted font-medium">No share metrics</div>
+              <div className="text-zinc-500 text-sm">No share metrics</div>
             )}
           </div>
-          <div className="space-y-3 mt-6 bg-background/50 p-4 rounded-2xl border border-border-light">
+          <div className="space-y-3 mt-6 p-4 rounded-md border border-zinc-800 bg-zinc-950">
             {pieData.map(d => (
-              <div key={d.name} className="flex justify-between items-center text-sm font-mono font-medium">
-                <span className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: d.color }}></div> 
+              <div key={d.name} className="flex justify-between items-center text-sm font-medium">
+                <span className="flex items-center gap-2 text-zinc-300">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div> 
                   {d.name}
                 </span>
-                <span className="text-text-primary font-bold">{d.value}</span>
+                <span className="text-zinc-50 font-semibold">{d.value}</span>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Interactive Expandable Table */}
-      <Card className="overflow-hidden p-0 shadow-md" animateHover={false}>
-        <div className="p-6 border-b border-border-light bg-background/20 flex justify-between items-center">
-          <div>
-            <h3 className="font-sans text-2xl text-text-primary tracking-wide">Action Log</h3>
-            <p className="text-xs text-text-muted mt-1 font-mono uppercase">Telemetry logs mapped per incident cycle</p>
-          </div>
-          <Server className="w-5 h-5 text-text-muted" />
-        </div>
+      <h2 className="text-xl font-semibold tracking-tight mb-4">Action Log</h2>
+      <div className="border border-zinc-800 rounded-lg bg-[#09090b] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-background/50 border-b border-border-light text-xs uppercase tracking-widest text-text-muted font-mono font-bold">
-                <th className="p-5 font-bold">Timestamp</th>
-                <th className="p-5 font-bold">Incident ID</th>
-                <th className="p-5 font-bold">Model Used</th>
-                <th className="p-5 font-bold">Tier</th>
-                <th className="p-5 font-bold">Cost</th>
-                <th className="p-5 font-bold">Latency</th>
-                <th className="p-5 w-12"></th>
+              <tr className="border-b border-zinc-800 text-sm font-medium text-zinc-400">
+                <th className="p-4 font-medium">Timestamp</th>
+                <th className="p-4 font-medium">Incident ID</th>
+                <th className="p-4 font-medium">Model Used</th>
+                <th className="p-4 font-medium">Tier</th>
+                <th className="p-4 font-medium">Cost</th>
+                <th className="p-4 font-medium">Latency</th>
+                <th className="p-4 w-12"></th>
               </tr>
             </thead>
-            <tbody className="text-sm font-mono font-medium">
+            <tbody className="text-sm">
               {tableDecisions.map((log) => {
                 const isExpanded = expandedId === log.id;
                 return (
                   <Fragment key={log.id}>
                     {/* Main Row */}
                     <tr 
-                      key={log.id} 
                       onClick={() => toggleRow(log.id)}
-                      className={`border-b border-border-light/50 hover:bg-background/30 transition-colors group cursor-pointer ${isExpanded ? 'bg-background/40' : ''}`}
+                      className={`border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors cursor-pointer ${isExpanded ? 'bg-zinc-900/30' : ''}`}
                     >
-                      <td className="p-5 text-text-muted group-hover:text-text-primary transition-colors">
+                      <td className="p-4 text-zinc-400 whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
-                      <td className="p-5 text-text-primary font-bold">
+                      <td className="p-4 text-zinc-100 font-medium whitespace-nowrap">
                         INC-{log.incident_id?.toString().padStart(4, '0') || '----'}
                       </td>
-                      <td className="p-5 text-text-muted text-xs truncate max-w-[150px]">{log.model_used}</td>
-                      <td className="p-5">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide shadow-sm border ${log.model_tier === 'fast-path' ? 'bg-accent-warm/10 text-accent-warm border-accent-warm/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                      <td className="p-4 text-zinc-400 text-xs truncate max-w-[150px] font-mono">{log.model_used}</td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded-sm text-xs font-medium border ${log.model_tier === 'fast-path' ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-zinc-100 text-zinc-900 border-zinc-200'}`}>
                           {log.model_tier}
                         </span>
                       </td>
-                      <td className="p-5 text-text-primary">${log.cost.toFixed(5)}</td>
-                      <td className="p-5 text-text-primary">{log.latency_ms.toFixed(0)}ms</td>
-                      <td className="p-5 text-center text-text-muted group-hover:text-text-primary">
+                      <td className="p-4 text-zinc-300 whitespace-nowrap">${log.cost.toFixed(5)}</td>
+                      <td className="p-4 text-zinc-300 whitespace-nowrap">{log.latency_ms.toFixed(0)}ms</td>
+                      <td className="p-4 text-center text-zinc-500">
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </td>
                     </tr>
@@ -309,7 +308,7 @@ export default function AuditView() {
                     {/* Expanded Drawer Row */}
                     <AnimatePresence initial={false}>
                       {isExpanded && (
-                        <tr key={`${log.id}-expanded`} className="bg-background/10">
+                        <tr key={`${log.id}-expanded`} className="bg-zinc-950/50 border-b border-zinc-800">
                           <td colSpan={7} className="p-0">
                             <motion.div 
                               initial={{ opacity: 0, height: 0 }}
@@ -318,61 +317,84 @@ export default function AuditView() {
                               transition={{ duration: 0.2 }}
                               className="overflow-hidden"
                             >
-                              <div className="p-6 border-b border-border-light/40 space-y-6 bg-surface/20">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="p-6 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                   
                                   {/* Left Panel: Diagnostic suggestions */}
-                                  <div className="space-y-4">
-                                    <div>
-                                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold block mb-2 flex items-center gap-1.5">
-                                        <Zap className="w-3.5 h-3.5 text-accent-warm" />
-                                        <span>AI Suggested Fix</span>
-                                      </span>
-                                      <div className="text-sm font-sans text-text-primary bg-background border border-border-light/60 p-4 rounded-xl leading-relaxed max-h-48 overflow-y-auto font-light shadow-inner whitespace-pre-line">
+                                  <div className="space-y-3">
+                                    <h4 className="text-sm font-medium text-zinc-100">Suggested Fix</h4>
+                                    <div className="relative group">
+                                      <pre className="text-xs font-mono text-zinc-300 bg-[#09090b] border border-zinc-800 p-4 rounded-md leading-relaxed overflow-x-auto whitespace-pre-wrap">
                                         {log.resolution_suggested || 'No suggestion recorded.'}
-                                      </div>
+                                      </pre>
+                                      {log.resolution_suggested && (
+                                        <button 
+                                          onClick={() => copyToClipboard(log.resolution_suggested, `fix-${log.id}`)}
+                                          className="absolute top-2 right-2 p-1.5 rounded-md bg-zinc-800 text-zinc-400 hover:text-zinc-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Copy code"
+                                        >
+                                          {copiedId === `fix-${log.id}` ? (
+                                            <span className="text-[10px] font-sans">Copied!</span>
+                                          ) : (
+                                            <Copy className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
+                                      )}
                                     </div>
                                     
                                     {log.escalated && (
-                                      <div className="bg-primary/5 border border-primary/15 p-4 rounded-xl">
-                                        <span className="text-[10px] uppercase tracking-widest text-primary font-bold block mb-1.5 flex items-center gap-1">
-                                          <ShieldAlert className="w-3.5 h-3.5 text-primary" />
-                                          <span>Escalation Telemetry</span>
-                                        </span>
-                                        <p className="text-xs font-mono text-text-primary leading-relaxed font-semibold">
+                                      <div className="mt-4">
+                                        <h4 className="text-sm font-medium text-zinc-100 mb-2 flex items-center gap-1.5">
+                                          <ShieldAlert className="w-4 h-4 text-zinc-400" />
+                                          Escalation Telemetry
+                                        </h4>
+                                        <pre className="text-xs font-mono text-zinc-300 bg-[#09090b] border border-zinc-800 p-4 rounded-md leading-relaxed overflow-x-auto whitespace-pre-wrap">
                                           {log.escalation_reason || 'Novel trace pattern. Fast path bypassed for reasoning LLM verifier.'}
-                                        </p>
+                                        </pre>
                                       </div>
                                     )}
                                   </div>
 
                                   {/* Right Panel: Hindsight memory hits & executions */}
-                                  <div className="space-y-4 font-mono text-xs">
+                                  <div className="space-y-6">
                                     <div>
-                                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold block mb-2">Memory Match Analytics</span>
-                                      <div className="bg-background border border-border-light p-4 rounded-xl space-y-3 shadow-inner">
+                                      <h4 className="text-sm font-medium text-zinc-100 mb-2">Memory Analytics</h4>
+                                      <div className="bg-[#09090b] border border-zinc-800 rounded-md p-4 text-xs space-y-3 font-mono">
                                         <div className="flex justify-between items-center">
-                                          <span className="text-text-muted">Memory Consulted:</span>
-                                          <span className={log.memory_consulted ? 'text-accent-warm font-bold' : 'text-text-muted'}>
-                                            {log.memory_consulted ? 'YES' : 'NO'}
+                                          <span className="text-zinc-500">Memory Consulted</span>
+                                          <span className={log.memory_consulted ? 'text-zinc-100' : 'text-zinc-500'}>
+                                            {log.memory_consulted ? 'true' : 'false'}
                                           </span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                          <span className="text-text-muted">Memory Hit (Cache):</span>
-                                          <span className={log.memory_hit ? 'text-accent-warm font-bold' : 'text-text-muted'}>
-                                            {log.memory_hit ? 'HIT (98% latency bypass)' : 'MISS'}
+                                          <span className="text-zinc-500">Memory Hit (Cache)</span>
+                                          <span className={log.memory_hit ? 'text-zinc-100' : 'text-zinc-500'}>
+                                            {log.memory_hit ? '"HIT"' : '"MISS"'}
                                           </span>
                                         </div>
                                         {log.memory_hit && (
                                           <>
                                             <div className="flex justify-between items-center">
-                                              <span className="text-text-muted">Vector Confidence:</span>
-                                              <span className="text-accent-warm font-bold">{(log.memory_match_score * 100).toFixed(1)}%</span>
+                                              <span className="text-zinc-500">Vector Confidence</span>
+                                              <span className="text-zinc-100">{(log.memory_match_score * 100).toFixed(1)}%</span>
                                             </div>
-                                            <div className="border-t border-border-light/40 pt-2.5 mt-2">
-                                              <span className="text-text-muted block mb-1.5 uppercase text-[9px] tracking-wider">Matched Past Incident Trace:</span>
-                                              <div className="text-[10px] text-text-primary bg-surface/80 border border-border-light/60 p-2.5 rounded-lg max-h-24 overflow-y-auto leading-relaxed scrollbar-thin">
-                                                {log.memory_match_content}
+                                            <div className="border-t border-zinc-800 pt-3 mt-3">
+                                              <span className="text-zinc-500 block mb-2">Matched Past Trace</span>
+                                              <div className="relative group">
+                                                <pre className="text-xs text-zinc-400 bg-zinc-950 border border-zinc-800 p-3 rounded-md max-h-32 overflow-y-auto whitespace-pre-wrap scrollbar-thin">
+                                                  {log.memory_match_content}
+                                                </pre>
+                                                <button 
+                                                  onClick={() => copyToClipboard(log.memory_match_content, `trace-${log.id}`)}
+                                                  className="absolute top-1.5 right-1.5 p-1 rounded-md bg-zinc-800 text-zinc-400 hover:text-zinc-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  title="Copy trace"
+                                                >
+                                                  {copiedId === `trace-${log.id}` ? (
+                                                    <span className="text-[10px] font-sans">Copied!</span>
+                                                  ) : (
+                                                    <Copy className="w-3.5 h-3.5" />
+                                                  )}
+                                                </button>
                                               </div>
                                             </div>
                                           </>
@@ -381,25 +403,24 @@ export default function AuditView() {
                                     </div>
 
                                     <div>
-                                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold block mb-2">Internal Route Properties</span>
-                                      <div className="bg-background border border-border-light p-4 rounded-xl space-y-2 shadow-inner">
+                                      <h4 className="text-sm font-medium text-zinc-100 mb-2">Route Properties</h4>
+                                      <div className="bg-[#09090b] border border-zinc-800 rounded-md p-4 text-xs space-y-3 font-mono">
                                         <div className="flex justify-between">
-                                          <span className="text-text-muted">Routing Tier:</span>
-                                          <span className="text-text-primary font-bold uppercase">{log.model_tier}</span>
+                                          <span className="text-zinc-500">Routing Tier</span>
+                                          <span className="text-zinc-100">"{log.model_tier}"</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-text-muted">Targeted Severity:</span>
-                                          <span className={`font-bold ${log.severity === 'CRITICAL' || log.severity === 'HIGH' ? 'text-primary' : 'text-accent-warm'}`}>
-                                            {log.severity || 'N/A'}
+                                          <span className="text-zinc-500">Targeted Severity</span>
+                                          <span className="text-zinc-100">
+                                            "{log.severity || 'N/A'}"
                                           </span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-text-muted">Confidence Index:</span>
-                                          <span className="text-text-primary font-bold">{log.confidence_score ? `${(log.confidence_score * 100).toFixed(0)}%` : 'N/A'}</span>
+                                          <span className="text-zinc-500">Confidence Index</span>
+                                          <span className="text-zinc-100">{log.confidence_score ? `${(log.confidence_score * 100).toFixed(0)}%` : '"N/A"'}</span>
                                         </div>
                                       </div>
                                     </div>
-
                                   </div>
 
                                 </div>
@@ -414,13 +435,13 @@ export default function AuditView() {
               })}
               {tableDecisions.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-10 text-center text-text-muted font-sans text-lg">No audit records logged.</td>
+                  <td colSpan="7" className="p-8 text-center text-zinc-500 text-sm">No audit records logged.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
