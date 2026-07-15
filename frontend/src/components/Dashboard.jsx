@@ -177,59 +177,55 @@ export default function Dashboard({ setGlobalState }) {
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           {/* Card 1: Active Incidents */}
-          <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={true}>
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
+          <Card className="flex flex-col p-5 border border-border-light shadow-sm" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Active Incidents</span>
-              <AlertTriangle className={`w-4 h-4 ${stats.open_incidents > 0 ? 'text-primary animate-pulse' : 'text-text-muted'}`} />
+              <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Active Incidents</span>
+              <AlertTriangle className={`w-4 h-4 ${stats.open_incidents > 0 ? 'text-primary' : 'text-text-muted'}`} />
             </div>
-            <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1">
+            <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1">
               {stats.open_incidents}
             </h2>
-            <span className="text-[10px] font-mono text-text-muted uppercase">
+            <span className="text-[11px] font-sans text-text-muted uppercase">
               {stats.solved_incidents} of {stats.total_incidents} resolved
             </span>
           </Card>
 
           {/* Card 2: Resolution Rate */}
-          <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={true}>
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-accent-warm" />
+          <Card className="flex flex-col p-5 border border-border-light shadow-sm" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Resolution Rate</span>
-              <ShieldCheck className="w-4 h-4 text-accent-warm" />
+              <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Resolution Rate</span>
+              <ShieldCheck className="w-4 h-4 text-text-muted" />
             </div>
-            <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1">
+            <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1">
               {stats.resolution_rate}%
             </h2>
-            <span className="text-[10px] font-mono text-text-muted uppercase">Incidents auto-resolved</span>
+            <span className="text-[11px] font-sans text-text-muted uppercase">Incidents auto-resolved</span>
           </Card>
 
           {/* Card 3: Memory Hit Rate */}
-          <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={true}>
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-secondary" />
+          <Card className="flex flex-col p-5 border border-border-light shadow-sm" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Known Issues Matched</span>
-              <Cpu className="w-4 h-4 text-secondary" />
+              <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Known Issues Matched</span>
+              <Cpu className="w-4 h-4 text-text-muted" />
             </div>
-            <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1">
+            <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1">
               {stats.ai_decisions?.memory_hit_rate || '0.0'}%
             </h2>
-            <span className="text-[10px] font-mono text-text-muted uppercase">
+            <span className="text-[11px] font-sans text-text-muted uppercase">
               {stats.ai_decisions?.memory_hits || 0} historical incident matches
             </span>
           </Card>
 
           {/* Card 4: Compute Savings */}
-          <Card className="flex flex-col p-5 relative overflow-hidden animateHover" animateHover={true}>
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-indigo-400" />
+          <Card className="flex flex-col p-5 border border-border-light shadow-sm" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Resolution Cost Saved</span>
-              <DollarSign className="w-4 h-4 text-indigo-400" />
+              <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Resolution Cost Saved</span>
+              <DollarSign className="w-4 h-4 text-text-muted" />
             </div>
-            <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1 text-indigo-400">
+            <h2 className="text-3xl font-sans text-text-primary font-bold tracking-tight mb-1">
               ${((stats.ai_decisions?.memory_hits || 0) * 0.045).toFixed(2)}
             </h2>
-            <span className="text-[10px] font-mono text-text-muted uppercase">
+            <span className="text-[11px] font-sans text-text-muted uppercase">
               {stats.ai_decisions?.memory_hits * 18 >= 60
                 ? `${((stats.ai_decisions.memory_hits * 18) / 60).toFixed(1)} hours MTTR saved`
                 : `${(stats.ai_decisions?.memory_hits || 0) * 18} mins MTTR saved`}
