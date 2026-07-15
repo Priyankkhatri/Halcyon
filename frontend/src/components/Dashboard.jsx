@@ -195,27 +195,27 @@ export default function Dashboard({ setGlobalState }) {
           <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={true}>
             <div className="absolute top-0 left-0 w-full h-[3px] bg-accent-warm" />
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Auto-Mitigation Rate</span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Resolution Rate</span>
               <ShieldCheck className="w-4 h-4 text-accent-warm" />
             </div>
             <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1">
               {stats.resolution_rate}%
             </h2>
-            <span className="text-[10px] font-mono text-text-muted uppercase">Cognitive auto-resolved</span>
+            <span className="text-[10px] font-mono text-text-muted uppercase">Incidents auto-resolved</span>
           </Card>
 
           {/* Card 3: Memory Hit Rate */}
           <Card className="flex flex-col p-5 relative overflow-hidden" animateHover={true}>
             <div className="absolute top-0 left-0 w-full h-[3px] bg-secondary" />
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Hindsight Cache Hit</span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Known Issues Matched</span>
               <Cpu className="w-4 h-4 text-secondary" />
             </div>
             <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1">
               {stats.ai_decisions?.memory_hit_rate || '0.0'}%
             </h2>
             <span className="text-[10px] font-mono text-text-muted uppercase">
-              {stats.ai_decisions?.memory_hits || 0} vector memory matches
+              {stats.ai_decisions?.memory_hits || 0} historical incident matches
             </span>
           </Card>
 
@@ -223,7 +223,7 @@ export default function Dashboard({ setGlobalState }) {
           <Card className="flex flex-col p-5 relative overflow-hidden animateHover" animateHover={true}>
             <div className="absolute top-0 left-0 w-full h-[3px] bg-indigo-400" />
             <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Compute Savings</span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted">Resolution Cost Saved</span>
               <DollarSign className="w-4 h-4 text-indigo-400" />
             </div>
             <h2 className="text-3xl font-serif text-text-primary font-bold tracking-tight mb-1 text-indigo-400">

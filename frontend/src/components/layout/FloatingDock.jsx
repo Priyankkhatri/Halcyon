@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useRoute } from 'wouter';
 import { motion } from 'framer-motion';
-import { Activity, Cpu, FileText, Settings } from 'lucide-react';
+import { Activity, Cpu, FileText, Settings, GitCommit } from 'lucide-react';
 
 export const FloatingDock = () => {
   const navItems = [
     { path: '/', label: 'Incident Feed', icon: Activity },
-    { path: '/memory', label: 'Hindsight Memory', icon: Cpu },
-    { path: '/audit', label: 'Audit Trail', icon: FileText },
+    { path: '/memory', label: 'Knowledge Base', icon: Cpu },
+    { path: '/audit', label: 'Audit Trail', icon: GitCommit },
     { path: '/settings', label: 'Settings', icon: Settings }
   ];
 

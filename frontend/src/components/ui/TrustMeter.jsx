@@ -51,10 +51,10 @@ export default function TrustMeter({ confidence = 0, matchCount = 0, state = 'es
       >
         <div className="flex items-center gap-2 font-mono text-[10px] text-[#E8935B] font-bold">
           <ShieldAlert className="w-3.5 h-3.5" />
-          <span>NO MATCHING PRECEDENT</span>
+          <span>NO KNOWN SOLUTION</span>
         </div>
         <p className="font-sans text-[11px] leading-relaxed text-text-muted">
-          Full diagnostic reasoning applied via verifier LLM pipeline.
+          Automated Root Cause Analysis (RCA) performed for this novel failure.
         </p>
       </motion.div>
     );

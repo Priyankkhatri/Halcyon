@@ -62,7 +62,7 @@ export const translations = {
     },
     sidebar: {
       incFeed: "Incident Feed",
-      hindsight: "Hindsight Memory",
+      hindsight: "Knowledge Base",
       audit: "Audit Trail",
       settings: "Settings",
       complianceEngine: "COMPLIANCE ENGINE:",

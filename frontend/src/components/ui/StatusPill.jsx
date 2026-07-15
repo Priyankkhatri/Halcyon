@@ -10,7 +10,7 @@ export default function StatusPill({ status, confidence }) {
         : 'bg-primary/10 border-primary/20 text-primary'
     }`}>
       <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isMatch ? 'bg-accent-warm' : 'bg-primary'}`} />
-      {isMatch ? `MEMORY MATCH ${confidence ? `— ${confidence}%` : ''}` : 'ESCALATED — NOVEL'}
+      {isMatch ? `KNOWN ISSUE ${confidence ? `— ${confidence}%` : ''}` : 'NOVEL INCIDENT'}
     </div>
   );
 }
