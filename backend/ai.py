@@ -777,12 +777,12 @@ async def generate_synthetic_crash_log(
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7, # Slightly higher temperature for realistic variance
-            max_tokens=512,
+            max_tokens=2048, # Increased to prevent <think> block truncation
         )
         
         raw_text = response.choices[0].message.content
-        # Remove <think> blocks if present
-        raw_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
+        # Remove <think> blocks if present, even if unclosed due to truncation
+        raw_text = re.sub(r"<think>.*?(?:</think>|$)", "", raw_text, flags=re.DOTALL).strip()
         # Clean up any accidental markdown
         cleaned = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
         cleaned = re.sub(r"\n```$", "", cleaned).strip()
