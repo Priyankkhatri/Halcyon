@@ -115,7 +115,6 @@ The JSON must have the following keys exactly:
   "affected_components": ["component1", "component2"],
   "confidence_score": 0.95
 }
-"""
 
 Severity guidelines:
   CRITICAL: Complete service outage, data loss, security breach
