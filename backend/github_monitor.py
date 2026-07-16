@@ -103,10 +103,10 @@ async def check_connection_for_new_commits(connection: GitHubConnection, db) -> 
 
     connection_id = connection.id
     if connection_id not in PROCESSED_COMMITS:
-        # First time checking: initialize with all recent commits to prevent duplicates on server restart
-        PROCESSED_COMMITS[connection_id] = {commit["sha"] for commit in commits}
-        logger.info(f"Initialized GitHub monitor for connection #{connection_id} with {len(commits)} historical commits. Skipping historical processing.")
-        return
+        # First time checking: initialize empty set so we process recent commits
+        # (especially useful for hackathons / ephemeral DBs where we WANT to process them after restart)
+        PROCESSED_COMMITS[connection_id] = set()
+        logger.info(f"Initialized GitHub monitor for connection #{connection_id}. Processing recent commits.")
 
     # Process commits from oldest to newest
     for commit in reversed(commits):
