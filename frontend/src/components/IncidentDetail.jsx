@@ -80,7 +80,7 @@ export default function IncidentDetail({ id }) {
   };
 
   if (loading) {
-    return <div className=" h-64 bg-surface rounded-md max-w-5xl mx-auto mt-8 border border-border-light shadow-none"></div>;
+    return <div className="h-64 bg-surface rounded-xl max-w-5xl mx-auto mt-8 border border-border-light shimmer-bg"></div>;
   }
   
   if (!incident) {
@@ -113,9 +113,9 @@ export default function IncidentDetail({ id }) {
             <div className="flex items-center bg-surface border border-border-light p-1 rounded-md gap-1 shrink-0 shadow-none font-mono text-[10px]">
               <button
                 onClick={() => setCompareMode(false)}
-                className={`px-3 py-1.5 rounded-lg font-bold tracking-wider transition-all cursor-pointer ${
-                  !compareMode 
-                    ? 'bg-accent-warm text-white shadow-none' 
+                className={`px-3 py-1.5 rounded-md font-bold tracking-wider transition-all cursor-pointer ${
+                  !compareMode
+                    ? 'bg-accent-warm text-white shadow-glow-teal'
                     : 'text-text-muted hover:text-text-primary'
                 }`}
               >
@@ -123,9 +123,9 @@ export default function IncidentDetail({ id }) {
               </button>
               <button
                 onClick={() => setCompareMode(true)}
-                className={`px-3 py-1.5 rounded-lg font-bold tracking-wider transition-all cursor-pointer ${
-                  compareMode 
-                    ? 'bg-surface text-white shadow-none' 
+                className={`px-3 py-1.5 rounded-md font-bold tracking-wider transition-all cursor-pointer ${
+                  compareMode
+                    ? 'bg-text-primary text-background shadow-antigravity'
                     : 'text-text-muted hover:text-text-primary'
                 }`}
               >
@@ -225,7 +225,7 @@ export default function IncidentDetail({ id }) {
               </div>
             </Card>
           </div>
-          <div className=" from-accent-warm/15 via-[#2EC4B6]/10 to-transparent border border-border-light p-5 rounded-md shadow-none text-center">
+          <div className="bg-gradient-to-r from-accent-warm/15 via-secondary/10 to-transparent border border-border-light p-5 rounded-xl shadow-antigravity text-center">
             <h4 className="font-sans text-base text-text-primary font-bold mb-1">Telemetry Comparison Summary</h4>
             <p className="text-xs font-mono text-text-muted leading-relaxed">
               With Halcyon Cognitive Memory:{" "}

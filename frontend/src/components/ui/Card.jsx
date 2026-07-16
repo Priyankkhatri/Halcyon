@@ -5,15 +5,17 @@ export default function Card({
   children,
   className = '',
   animateHover = true,
+  accentStrip = false,
   ...props
 }) {
   return (
     <motion.div
-      whileHover={animateHover ? { backgroundColor: "var(--background)" } : undefined}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
-      className={`bg-surface rounded-md p-6 border border-border-light shadow-none transition-colors duration-200 ${className}`}
+      whileHover={animateHover ? { y: -3, boxShadow: 'var(--shadow-val-antigravity-hover)' } : undefined}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className={`relative bg-surface rounded-xl p-6 border border-border-light shadow-antigravity transition-colors duration-200 ${className}`}
       {...props}
     >
+      {accentStrip && <div className="accent-strip-bar rounded-t-xl" />}
       {children}
     </motion.div>
   );

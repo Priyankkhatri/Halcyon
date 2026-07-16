@@ -56,8 +56,10 @@ export default function AuthForm({ onAuthSuccess }) {
     <div className="min-h-screen bg-background text-text-muted flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
       {/* Decorative neon ambient spotlight backdrop */}
-      <div className="absolute inset-0 pointer-events-none z-0">
-        </div>
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-[15%] -left-[10%] w-[50vw] h-[50vw] rounded-full blur-[150px] opacity-[0.10] bg-accent-warm" />
+        <div className="absolute -bottom-[15%] -right-[10%] w-[45vw] h-[45vw] rounded-full blur-[160px] opacity-[0.08] bg-primary" />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -65,13 +67,13 @@ export default function AuthForm({ onAuthSuccess }) {
         transition={{ type: 'spring', damping: 25, stiffness: 80 }}
         className="w-full max-w-md z-10"
       >
-        <Card className="relative overflow-hidden border border-border-light/60 p-6 sm:p-8 shadow-none" animateHover={false}>
+        <Card className="relative overflow-hidden border border-border-light p-6 sm:p-8 shadow-antigravity-hover" animateHover={false}>
           {/* Top accent line */}
-          <div className="absolute top-0 left-0 w-full h-[3px]  from-primary via-accent-warm to-secondary" />
+          <div className="accent-strip-bar rounded-t-xl" />
 
           {/* Logo & Header */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-background border border-border-light rounded-md flex items-center justify-center mx-auto mb-4 shadow-none">
+            <div className="w-12 h-12 bg-background border border-border-light rounded-xl flex items-center justify-center mx-auto mb-4 shadow-antigravity">
               <Shield className="w-6 h-6 text-accent-warm" />
             </div>
             <h2 className="font-sans text-3xl text-text-primary tracking-wide mb-1.5">

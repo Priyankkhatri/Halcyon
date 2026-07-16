@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useRoute } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { Activity, Cpu, FileText, Shield, Settings, LogOut } from 'lucide-react';
 import logo from '../../assets/logo.png';
@@ -7,7 +7,8 @@ import { useApp } from '../../context/AppContext';
 
 export const Sidebar = () => {
   const { t, subscription, limitCount, maxLogs } = useApp();
-  
+  const [location] = useLocation();
+
   const navItems = [
     { path: '/dashboard', label: t('sidebar.incFeed'), icon: Activity },
     { path: '/memory', label: t('sidebar.hindsight'), icon: Cpu },
@@ -31,16 +32,16 @@ export const Sidebar = () => {
         <nav className="p-4 space-y-1.5 flex-1 mt-4">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const [isActive] = useRoute(item.path);
+            const isActive = location === item.path;
 
             return (
               <Link 
                 key={item.path} 
                 href={item.path}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-md cursor-pointer text-xs font-mono font-semibold tracking-wide transition-all group focus:outline-none focus:ring-1 focus:ring-primary/20 ${
-                  isActive 
-                    ? 'bg-surface border-l-2 border-accent-warm text-accent-warm shadow-none' 
-                    : 'text-text-muted hover:text-text-primary hover:bg-background/50 border-l-2 border-transparent'
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-xs font-mono font-semibold tracking-wide transition-all group focus:outline-none focus:ring-1 focus:ring-accent-warm/30 ${
+                  isActive
+                    ? 'bg-accent-warm/10 border border-accent-warm/30 text-accent-warm shadow-[inset_0_0_18px_rgba(46,196,182,0.08)]'
+                    : 'text-text-muted hover:text-text-primary hover:bg-border-light/40 border border-transparent'
                 }`}
                 aria-label={item.label}
               >
@@ -50,7 +51,7 @@ export const Sidebar = () => {
                 {isActive && (
                   <motion.div
                     layoutId="sidebarActiveIndicator"
-                    className="absolute right-3 w-1.5 h-1.5 rounded-sm bg-accent-warm"
+                    className="absolute right-3 w-1.5 h-1.5 rounded-full bg-accent-warm shadow-glow-teal"
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 )}

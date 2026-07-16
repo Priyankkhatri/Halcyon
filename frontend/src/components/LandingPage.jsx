@@ -152,13 +152,13 @@ export default function LandingPage({ onEnterApp }) {
       </div>
 
       {/* Top Navigation */}
-      <header className="fixed top-0 left-0 right-0 h-20 bg-background  z-40 border-b border-border-light/20 px-4 sm:px-6 lg:px-12 flex items-center justify-between shadow-none">
+      <header className="fixed top-0 left-0 right-0 h-20 glass-panel z-40 border-b border-border-light/40 px-4 sm:px-6 lg:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3 group cursor-pointer">
           <div className="relative">
-            <div className="absolute inset-0 bg-surface blur-md rounded-sm group-hover:bg-surface transition-colors duration-500" />
-            <img src={logo} alt="Halcyon Logo" className="relative w-8 h-8 rounded-lg object-cover border border-border-light/40 shadow-none" />
+            <div className="absolute inset-0 bg-accent-warm/30 blur-md rounded-lg group-hover:bg-accent-warm/50 transition-colors duration-500" />
+            <img src={logo} alt="Halcyon Logo" className="relative w-8 h-8 rounded-lg object-cover border border-border-light/40 shadow-antigravity" />
           </div>
-          <span className="font-sans text-xl sm:text-2xl font-semibold tracking-tight text-text-primary group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-text-primary group-hover:to-accent-warm transition-all duration-300">Halcyon</span>
+          <span className="font-sans text-xl sm:text-2xl font-semibold tracking-tight text-text-primary group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-accent-warm group-hover:to-primary transition-all duration-300">Halcyon</span>
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">
@@ -173,7 +173,7 @@ export default function LandingPage({ onEnterApp }) {
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="appearance-none bg-surface border border-border-light hover:border-border-light px-3.5 py-2 pr-8 rounded-md font-mono text-[10px] font-bold text-text-muted hover:text-text-primary focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer shadow-none"
+              className="appearance-none bg-surface border border-border-light hover:border-border-strong px-3.5 py-2 pr-8 rounded-lg font-mono text-[10px] font-bold text-text-muted hover:text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-warm/30 transition-all cursor-pointer shadow-antigravity"
               aria-label="Select language"
             >
               <option value="en">EN</option>
@@ -183,9 +183,9 @@ export default function LandingPage({ onEnterApp }) {
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted/60 font-bold text-[8px] font-mono">&darr;</div>
           </div>
 
-          <Button 
+          <Button
             onClick={onEnterApp}
-            variant="primary"
+            variant="accent"
             className="px-3 py-1.5 sm:px-5 sm:py-2 text-[10px] sm:text-xs"
           >
             {t('nav.enterDashboard')} &rarr;
@@ -232,14 +232,14 @@ export default function LandingPage({ onEnterApp }) {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7, duration: 1.0, type: "spring", damping: 25 }}
-          className="w-full max-w-4xl bg-surface border border-border-light rounded-md sm:rounded-md p-4 sm:p-6 shadow-none mb-16 sm:mb-24 relative overflow-hidden group"
+          className="w-full max-w-4xl bg-surface border border-border-light rounded-2xl p-4 sm:p-6 shadow-antigravity-hover mb-16 sm:mb-24 relative overflow-hidden group"
         >
-          <div className="absolute top-0 left-0 w-full h-[3px]  from-primary via-accent-warm to-secondary" />
+          <div className="accent-strip-bar" />
           
           {/* Console Header Bar */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs font-mono border-b border-border-light pb-4 mb-6">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-sm bg-primary " />
+              <span className="w-2.5 h-2.5 rounded-full bg-accent-warm shadow-glow-teal animate-pulse-glow" />
               <span className="font-semibold text-text-primary">{t('landing.coreOscilloscope')}</span>
             </div>
             <div className="flex items-center gap-4 text-text-muted self-end sm:self-auto text-[10px] sm:text-xs">
@@ -324,7 +324,7 @@ export default function LandingPage({ onEnterApp }) {
                 
                 <div className="space-y-6 flex-1">
                   <div className="bg-background border border-border-light p-4 rounded-md flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-sm bg-accent-warm " />
+                    <div className="w-2 h-2 rounded-full bg-accent-warm shadow-glow-teal animate-pulse-glow" />
                     <span className="font-mono text-sm text-text-primary font-bold">{t('landing.memoryMatch')}</span>
                   </div>
                   <p className="text-sm font-mono text-text-primary leading-relaxed bg-surface border border-border-light p-4 rounded-md">
@@ -353,10 +353,10 @@ export default function LandingPage({ onEnterApp }) {
             {features.map((f, i) => (
               <motion.div key={i} variants={fadeInUpVariants} className="h-full">
                 <Card className="flex flex-col text-left h-full animateHover" animateHover={false}>
-                  <div className="w-10 h-10 rounded-md bg-background border border-border-light flex items-center justify-center mb-6 shadow-none">
+                  <div className="w-12 h-12 rounded-xl bg-background border border-border-light flex items-center justify-center mb-6 shadow-antigravity group-hover:border-accent-warm/40 transition-colors">
                     {f.icon}
                   </div>
-                  <h3 className="font-sans text-2xl text-text-primary mb-3 tracking-wide">{f.title}</h3>
+                  <h3 className="font-sans text-2xl text-text-primary mb-3 tracking-tight">{f.title}</h3>
                   <p className="text-sm text-text-muted font-light leading-relaxed">{f.desc}</p>
                 </Card>
               </motion.div>
@@ -383,7 +383,7 @@ export default function LandingPage({ onEnterApp }) {
                 <motion.div 
                   key={index} 
                   variants={fadeInUpVariants}
-                  className="bg-surface rounded-md border border-border-light shadow-none overflow-hidden transition-all duration-300"
+                  className="bg-surface rounded-xl border border-border-light shadow-antigravity overflow-hidden transition-all duration-300"
                 >
                   <button 
                     onClick={() => setActiveFaq(isOpen ? null : index)}

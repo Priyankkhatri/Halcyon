@@ -1,11 +1,12 @@
 import React from 'react';
-import { Link, useRoute } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { Activity, Cpu, FileText, Settings, GitCommit } from 'lucide-react';
+import { Activity, Cpu, Settings, GitCommit } from 'lucide-react';
 
 export const FloatingDock = () => {
+  const [location] = useLocation();
   const navItems = [
-    { path: '/', label: 'Incident Feed', icon: Activity },
+    { path: '/dashboard', label: 'Incident Feed', icon: Activity },
     { path: '/memory', label: 'Knowledge Base', icon: Cpu },
     { path: '/audit', label: 'Audit Trail', icon: GitCommit },
     { path: '/settings', label: 'Settings', icon: Settings }
@@ -13,10 +14,10 @@ export const FloatingDock = () => {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden">
-      <div className="flex items-center gap-6 px-6 py-3 rounded-sm bg-surface  border border-white/60 dark:border-white/10 shadow-none">
+      <div className="flex items-center gap-6 px-6 py-3 rounded-2xl glass-panel shadow-antigravity-hover">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const [isActive] = useRoute(item.path);
+          const isActive = location === item.path;
 
           return (
             <Link 
@@ -40,13 +41,13 @@ export const FloatingDock = () => {
                   {/* Liquid Glass capsule sliding backdrop */}
                   <motion.div
                     layoutId="activeBackdrop"
-                    className="absolute inset-0 bg-surface border border-border-light rounded-sm -z-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                    className="absolute inset-0 bg-accent-warm/10 border border-accent-warm/30 rounded-xl -z-10"
                     transition={{ type: 'spring', stiffness: 220, damping: 25 }}
                   />
                   {/* Sliding dot indicator */}
                   <motion.div
                     layoutId="activeDot"
-                    className="absolute -bottom-1.5 w-1 h-1 rounded-sm bg-accent-warm"
+                    className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-accent-warm shadow-glow-teal"
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 </>

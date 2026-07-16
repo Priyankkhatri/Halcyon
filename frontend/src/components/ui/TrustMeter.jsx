@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function TrustMeter({ confidence = 0, matchCount = 0, state = 'escalated', matchedIds = [], isDetailed = false }) {

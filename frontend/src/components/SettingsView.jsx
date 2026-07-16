@@ -135,7 +135,7 @@ export default function SettingsView() {
           <div className="h-9 w-48 bg-surface rounded-md shimmer-bg mb-2"></div>
           <div className="h-4 w-80 bg-surface rounded-md shimmer-bg"></div>
         </div>
-        <div className=" h-64 bg-surface rounded-md border border-border-light shadow-none shimmer-bg"></div>
+        <div className="h-64 bg-surface rounded-xl border border-border-light shimmer-bg"></div>
       </div>
     );
   }
@@ -191,18 +191,18 @@ export default function SettingsView() {
             {/* Connection Status Badge */}
             <div className="flex items-center gap-3">
               {status.connected && status.status === 'connected' ? (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm bg-surface border border-border-light text-[10px] font-mono font-bold uppercase tracking-wider text-accent-warm shadow-none">
-                  <span className="w-1.5 h-1.5 rounded-sm bg-accent-warm " />
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-surface border border-accent-warm/40 text-[10px] font-mono font-bold uppercase tracking-wider text-accent-warm shadow-antigravity">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-warm shadow-glow-teal animate-pulse-glow" />
                   Connected
                 </span>
               ) : status.status === 'invalid' ? (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm bg-surface border border-border-light text-[10px] font-mono font-bold uppercase tracking-wider text-primary shadow-none ">
-                  <span className="w-1.5 h-1.5 rounded-sm bg-primary" />
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-surface border border-primary/40 text-[10px] font-mono font-bold uppercase tracking-wider text-primary shadow-antigravity">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-glow-amber" />
                   Needs Renewal
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm bg-background border border-border-light text-[10px] font-mono font-bold uppercase tracking-wider text-text-muted shadow-none">
-                  <span className="w-1.5 h-1.5 rounded-sm bg-text-muted/50" />
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-background border border-border-light text-[10px] font-mono font-bold uppercase tracking-wider text-text-muted shadow-antigravity">
+                  <span className="w-1.5 h-1.5 rounded-full bg-text-muted/50" />
                   Disconnected
                 </span>
               )}

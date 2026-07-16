@@ -21,7 +21,7 @@ export default function MemoryView() {
   }, []);
 
   if (loading) {
-    return <div className=" h-64 bg-surface rounded-md max-w-4xl mx-auto mt-8 border border-border-light shadow-none"></div>;
+    return <div className="h-64 bg-surface rounded-xl max-w-4xl mx-auto mt-8 border border-border-light shimmer-bg"></div>;
   }
 
   return (
@@ -40,7 +40,7 @@ export default function MemoryView() {
           {memories.map((mem) => (
             <div key={mem.id} className="relative group">
               {/* Node connecting dot */}
-              <div className="absolute -left-[33px] md:-left-[51px] top-6 w-5 h-5 bg-background border-[4px] border-accent-warm rounded-sm shadow-none group-hover:scale-110 transition-transform" />
+              <div className="absolute -left-[33px] md:-left-[51px] top-6 w-5 h-5 bg-background border-[4px] border-accent-warm rounded-full shadow-glow-teal group-hover:scale-110 transition-transform" />
               
               <Card className="border-border-light p-4 sm:p-6" animateHover={false}>
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">

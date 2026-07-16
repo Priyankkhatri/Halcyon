@@ -1,25 +1,22 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Activity, 
-  TrendingUp, 
-  DollarSign, 
-  Clock, 
-  Cpu, 
+import {
+  TrendingUp,
+  DollarSign,
+  Clock,
+  Cpu,
   ShieldAlert,
   ChevronDown,
   ChevronUp,
-  Server,
-  Zap,
   Copy
 } from 'lucide-react';
 import { api } from '../api';
 
 const COLORS = {
-  memory: 'var(--text-primary)',
-  escalated: 'var(--text-muted)',
-  neutral: 'var(--border-light)'
+  memory: '#2EC4B6',
+  escalated: '#E8935B',
+  neutral: 'var(--border-strong)'
 };
 
 export default function AuditView() {
@@ -86,7 +83,7 @@ export default function AuditView() {
   };
 
   if (loading) {
-    return <div className=" h-96 bg-surface border border-border-light rounded-lg max-w-5xl mx-auto mt-8"></div>;
+    return <div className="h-96 bg-surface border border-border-light rounded-xl max-w-5xl mx-auto mt-8 shimmer-bg"></div>;
   }
 
   const tableDecisions = [...decisions].reverse();
@@ -110,51 +107,51 @@ export default function AuditView() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         
         {/* Cumulative cost */}
-        <div className="flex flex-col p-5 border border-border-light rounded-lg bg-surface">
+        <div className="flex flex-col p-5 border border-border-light rounded-xl bg-surface shadow-antigravity hover:shadow-antigravity-hover transition-shadow">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-text-muted">API Cost Incurred</span>
-            <DollarSign className="w-4 h-4 text-text-primary0" />
+            <DollarSign className="w-4 h-4 text-text-muted" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight mb-1">
             ${stats?.ai_decisions?.total_cost?.toFixed(5) || '0.00000'}
           </h2>
-          <span className="text-xs text-text-primary0">Cumulative Fees</span>
+          <span className="text-xs text-text-muted">Cumulative Fees</span>
         </div>
 
         {/* Cost saved */}
-        <div className="flex flex-col p-5 border border-border-light rounded-lg bg-surface">
+        <div className="flex flex-col p-5 border border-border-light rounded-xl bg-surface shadow-antigravity hover:shadow-antigravity-hover transition-shadow">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-text-muted">Estimated Savings</span>
-            <TrendingUp className="w-4 h-4 text-text-primary0" />
+            <TrendingUp className="w-4 h-4 text-text-muted" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight mb-1">
             +${estimatedSavingsDollars.toFixed(3)}
           </h2>
-          <span className="text-xs text-text-primary0">Bypassed LLM Calls</span>
+          <span className="text-xs text-text-muted">Bypassed LLM Calls</span>
         </div>
 
         {/* Downtime Bypassed */}
-        <div className="flex flex-col p-5 border border-border-light rounded-lg bg-surface">
+        <div className="flex flex-col p-5 border border-border-light rounded-xl bg-surface shadow-antigravity hover:shadow-antigravity-hover transition-shadow">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-text-muted">MTTR Saved</span>
-            <Clock className="w-4 h-4 text-text-primary0" />
+            <Clock className="w-4 h-4 text-text-muted" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight mb-1">
             {downtimeSavedText}
           </h2>
-          <span className="text-xs text-text-primary0">On-Call Time Bypassed</span>
+          <span className="text-xs text-text-muted">On-Call Time Bypassed</span>
         </div>
 
         {/* Hit Rate */}
-        <div className="flex flex-col p-5 border border-border-light rounded-lg bg-surface">
+        <div className="flex flex-col p-5 border border-border-light rounded-xl bg-surface shadow-antigravity hover:shadow-antigravity-hover transition-shadow">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-text-muted">Memory Hit Rate</span>
-            <Cpu className="w-4 h-4 text-text-primary0" />
+            <Cpu className="w-4 h-4 text-text-muted" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight mb-1">
             {stats?.ai_decisions?.memory_hit_rate || '0.0'}%
           </h2>
-          <span className="text-xs text-text-primary0">Fast Path Resolution</span>
+          <span className="text-xs text-text-muted">Fast Path Resolution</span>
         </div>
       </div>
 
@@ -162,7 +159,7 @@ export default function AuditView() {
       <h2 className="text-xl font-semibold tracking-tight mb-4">Telemetry Metrics</h2>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
         {/* Trend Area Chart */}
-        <div className="lg:col-span-2 flex flex-col p-6 border border-border-light rounded-lg bg-surface">
+        <div className="lg:col-span-2 flex flex-col p-6 border border-border-light rounded-xl bg-surface shadow-antigravity">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <h3 className="font-semibold text-lg text-text-primary tracking-tight">
               {chartMetric === 'cost' ? 'Inference Cost Trend' : 'Resolution Latency Trend'}
@@ -219,13 +216,13 @@ export default function AuditView() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-text-primary0 text-sm">No telemetry data recorded yet.</div>
+              <div className="h-full flex items-center justify-center text-text-muted text-sm">No telemetry data recorded yet.</div>
             )}
           </div>
         </div>
 
         {/* Resolution Path Pie Chart */}
-        <div className="flex flex-col p-6 border border-border-light rounded-lg bg-surface">
+        <div className="flex flex-col p-6 border border-border-light rounded-xl bg-surface shadow-antigravity">
           <h3 className="font-semibold text-lg tracking-tight mb-4">Routing Share</h3>
           <div className="flex-1 flex items-center justify-center min-h-[200px]">
             {pieData.length > 0 ? (
@@ -243,7 +240,7 @@ export default function AuditView() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-text-primary0 text-sm">No share metrics</div>
+              <div className="text-text-muted text-sm">No share metrics</div>
             )}
           </div>
           <div className="space-y-3 mt-6 p-4 rounded-md border border-border-light bg-background">
@@ -262,7 +259,7 @@ export default function AuditView() {
 
       {/* Interactive Expandable Table */}
       <h2 className="text-xl font-semibold tracking-tight mb-4">Action Log</h2>
-      <div className="border border-border-light rounded-lg bg-surface overflow-hidden">
+      <div className="border border-border-light rounded-xl bg-surface overflow-hidden shadow-antigravity">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -300,7 +297,7 @@ export default function AuditView() {
                       </td>
                       <td className="p-4 text-text-primary font-medium whitespace-nowrap">${log.cost.toFixed(5)}</td>
                       <td className="p-4 text-text-primary font-medium whitespace-nowrap">{log.latency_ms.toFixed(0)}ms</td>
-                      <td className="p-4 text-center text-text-primary0">
+                      <td className="p-4 text-center text-text-muted">
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </td>
                     </tr>
@@ -361,25 +358,25 @@ export default function AuditView() {
                                       <h4 className="text-sm font-medium text-text-primary mb-2">Memory Analytics</h4>
                                       <div className="bg-surface border border-border-light rounded-md p-4 text-xs space-y-3 font-mono">
                                         <div className="flex justify-between items-center">
-                                          <span className="text-text-primary0">Memory Consulted</span>
-                                          <span className={log.memory_consulted ? 'text-text-primary' : 'text-text-primary0'}>
+                                          <span className="text-text-muted">Memory Consulted</span>
+                                          <span className={log.memory_consulted ? 'text-text-primary' : 'text-text-muted'}>
                                             {log.memory_consulted ? 'true' : 'false'}
                                           </span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                          <span className="text-text-primary0">Memory Hit (Cache)</span>
-                                          <span className={log.memory_hit ? 'text-text-primary' : 'text-text-primary0'}>
+                                          <span className="text-text-muted">Memory Hit (Cache)</span>
+                                          <span className={log.memory_hit ? 'text-text-primary' : 'text-text-muted'}>
                                             {log.memory_hit ? '"HIT"' : '"MISS"'}
                                           </span>
                                         </div>
                                         {log.memory_hit && (
                                           <>
                                             <div className="flex justify-between items-center">
-                                              <span className="text-text-primary0">Vector Confidence</span>
+                                              <span className="text-text-muted">Vector Confidence</span>
                                               <span className="text-text-primary">{(log.memory_match_score * 100).toFixed(1)}%</span>
                                             </div>
                                             <div className="border-t border-border-light pt-3 mt-3">
-                                              <span className="text-text-primary0 block mb-2">Matched Past Trace</span>
+                                              <span className="text-text-muted block mb-2">Matched Past Trace</span>
                                               <div className="relative group">
                                                 <pre className="text-xs text-text-muted bg-background border border-border-light p-3 rounded-md max-h-32 overflow-y-auto whitespace-pre-wrap scrollbar-thin">
                                                   {log.memory_match_content}
@@ -406,17 +403,17 @@ export default function AuditView() {
                                       <h4 className="text-sm font-medium text-text-primary mb-2">Route Properties</h4>
                                       <div className="bg-surface border border-border-light rounded-md p-4 text-xs space-y-3 font-mono">
                                         <div className="flex justify-between">
-                                          <span className="text-text-primary0">Routing Tier</span>
+                                          <span className="text-text-muted">Routing Tier</span>
                                           <span className="text-text-primary">"{log.model_tier}"</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-text-primary0">Targeted Severity</span>
+                                          <span className="text-text-muted">Targeted Severity</span>
                                           <span className="text-text-primary">
                                             "{log.severity || 'N/A'}"
                                           </span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-text-primary0">Confidence Index</span>
+                                          <span className="text-text-muted">Confidence Index</span>
                                           <span className="text-text-primary">{log.confidence_score ? `${(log.confidence_score * 100).toFixed(0)}%` : '"N/A"'}</span>
                                         </div>
                                       </div>
@@ -435,7 +432,7 @@ export default function AuditView() {
               })}
               {tableDecisions.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-text-primary0 text-sm">No audit records logged.</td>
+                  <td colSpan="7" className="p-8 text-center text-text-muted text-sm">No audit records logged.</td>
                 </tr>
               )}
             </tbody>

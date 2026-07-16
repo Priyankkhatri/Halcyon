@@ -165,7 +165,7 @@ export default function Dashboard({ setGlobalState }) {
           <Button
             onClick={() => setShowSimModal(true)}
             disabled={simulating}
-            variant="primary"
+            variant="accent"
             className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider font-bold"
           >
             {simulating ? t('dashboard.runningAnalysis') : t('dashboard.simulateBtn')}
@@ -177,7 +177,7 @@ export default function Dashboard({ setGlobalState }) {
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           {/* Card 1: Active Incidents */}
-          <Card className="flex flex-col p-5 border border-border-light shadow-none" animateHover={false}>
+          <Card className="flex flex-col p-5 border border-border-light" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
               <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Active Incidents</span>
               <AlertTriangle className={`w-4 h-4 ${stats.open_incidents > 0 ? 'text-primary' : 'text-text-muted'}`} />
@@ -191,7 +191,7 @@ export default function Dashboard({ setGlobalState }) {
           </Card>
 
           {/* Card 2: Resolution Rate */}
-          <Card className="flex flex-col p-5 border border-border-light shadow-none" animateHover={false}>
+          <Card className="flex flex-col p-5 border border-border-light" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
               <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Resolution Rate</span>
               <ShieldCheck className="w-4 h-4 text-text-muted" />
@@ -203,7 +203,7 @@ export default function Dashboard({ setGlobalState }) {
           </Card>
 
           {/* Card 3: Memory Hit Rate */}
-          <Card className="flex flex-col p-5 border border-border-light shadow-none" animateHover={false}>
+          <Card className="flex flex-col p-5 border border-border-light" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
               <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Known Issues Matched</span>
               <Cpu className="w-4 h-4 text-text-muted" />
@@ -217,7 +217,7 @@ export default function Dashboard({ setGlobalState }) {
           </Card>
 
           {/* Card 4: Compute Savings */}
-          <Card className="flex flex-col p-5 border border-border-light shadow-none" animateHover={false}>
+          <Card className="flex flex-col p-5 border border-border-light" animateHover={false}>
             <div className="flex justify-between items-start mb-3">
               <span className="text-[11px] font-sans font-bold uppercase tracking-widest text-text-muted">Resolution Cost Saved</span>
               <DollarSign className="w-4 h-4 text-text-muted" />
@@ -235,9 +235,9 @@ export default function Dashboard({ setGlobalState }) {
       )}
 
       {showSimModal && (
-        <div className="fixed inset-0 bg-[#0A0E1A]/85  z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg border-none shadow-none relative overflow-hidden bg-surface animate-in fade-in zoom-in-95 duration-200" animateHover={false}>
-             <div className="absolute top-0 left-0 w-full h-1.5  from-primary to-accent-warm" />
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg border border-border-light shadow-antigravity-hover relative overflow-hidden bg-surface animate-in fade-in zoom-in-95 duration-200" animateHover={false}>
+             <div className="accent-strip-bar rounded-t-xl" />
              <h3 className="font-sans text-3xl font-medium tracking-wide mb-3 text-text-primary">{t('dashboard.simModalTitle')}</h3>
              <p className="text-sm text-text-muted font-light mb-6 leading-relaxed">{t('dashboard.simModalSub')}</p>
              <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
@@ -303,9 +303,9 @@ export default function Dashboard({ setGlobalState }) {
 
       <div className="space-y-4">
         {loading ? (
-          <div className=" space-y-4">
+          <div className="space-y-4">
              {[1, 2, 3].map(i => (
-                <div key={i} className="h-24 bg-surface rounded-md border border-border-light" />
+                <div key={i} className="h-24 bg-surface rounded-xl border border-border-light shimmer-bg" />
              ))}
           </div>
         ) : incidents.length === 0 ? (
@@ -315,7 +315,7 @@ export default function Dashboard({ setGlobalState }) {
         ) : (
           incidents.map((inc) => (
             <Link key={inc.id} href={`/incident/${inc.id}`} className="block group">
-              <Card className={`flex flex-col sm:flex-row sm:items-center sm:justify-between cursor-pointer border hover:border-border-light transition-all p-4 sm:p-6 gap-4 sm:gap-6 ${inc.is_solved ? 'border-border-light hover:border-border-strong' : 'border-border-light hover:border-border-strong'}`} animateHover={false}>
+              <Card className={`flex flex-col sm:flex-row sm:items-center sm:justify-between cursor-pointer border transition-all p-4 sm:p-6 gap-4 sm:gap-6 ${inc.is_solved ? 'border-border-light hover:border-accent-warm/50' : 'border-border-light hover:border-primary/50'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 w-full sm:flex-1 sm:min-w-0">
                   {/* Saturated and larger medium size waveform per card */}
                   <div className="flex items-center justify-center bg-background border border-border-light/60 p-2.5 rounded-md w-full sm:w-44 h-16 shadow-inner relative overflow-hidden flex-shrink-0">

@@ -70,8 +70,10 @@ export default function GithubOnboarding({ onConnectionSuccess }) {
     <div className="min-h-screen bg-background text-text-muted flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
       {/* Interactive neon spotlight ambient background */}
-      <div className="absolute inset-0 pointer-events-none z-0">
-        </div>
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -top-[15%] -right-[10%] w-[50vw] h-[50vw] rounded-full blur-[150px] opacity-[0.10] bg-accent-warm" />
+        <div className="absolute -bottom-[15%] -left-[10%] w-[45vw] h-[45vw] rounded-full blur-[160px] opacity-[0.08] bg-secondary" />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
@@ -79,9 +81,9 @@ export default function GithubOnboarding({ onConnectionSuccess }) {
         transition={{ type: 'spring', damping: 25, stiffness: 85 }}
         className="w-full max-w-lg z-10"
       >
-        <Card className="relative overflow-hidden border border-border-light/60 p-6 sm:p-8 shadow-none" animateHover={false}>
+        <Card className="relative overflow-hidden border border-border-light p-6 sm:p-8 shadow-antigravity-hover" animateHover={false}>
           {/* Top accent strip */}
-          <div className="absolute top-0 left-0 w-full h-[3px]  from-accent-warm via-[#2EC4B6] to-secondary" />
+          <div className="accent-strip-bar rounded-t-xl" />
 
           {/* Success Banner */}
           <AnimatePresence>

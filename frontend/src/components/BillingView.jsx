@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useApp } from '../context/AppContext';
 import Card from './ui/Card';
 import { Button } from './ui/Button';
-import { Check, ShieldAlert, CreditCard, Sparkles, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Check, CreditCard, Sparkles, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BillingView() {
@@ -155,14 +155,14 @@ export default function BillingView() {
             <Card
               className={`flex flex-col justify-between relative overflow-hidden h-full border ${
                 subscription === 'pro'
-                  ? 'border-accent-warm shadow-halcyon-glow-amber  from-accent-warm/[0.02] to-transparent'
+                  ? 'border-accent-warm shadow-glow-teal bg-gradient-to-b from-accent-warm/[0.04] to-transparent'
                   : 'border-border-light/70'
               }`}
               animateHover={subscription !== 'pro'}
             >
               {/* Premium Glow effect */}
               {subscription === 'pro' && (
-                <div className="absolute top-0 left-0 w-full h-[3px]  from-accent-warm via-primary to-secondary" />
+                <div className="accent-strip-bar rounded-t-xl" />
               )}
 
               <div>
@@ -203,9 +203,9 @@ export default function BillingView() {
                   </div>
                 ) : (
                   <Button
-                    variant="primary"
+                    variant="accent"
                     onClick={() => setCheckoutActive(true)}
-                    className="w-full bg-accent-warm hover:bg-surface text-white border-none shadow-none font-mono text-xs font-bold uppercase tracking-wider transition-all duration-300 hover:scale-[1.01]"
+                    className="w-full font-mono text-xs font-bold uppercase tracking-wider transition-all duration-300 hover:scale-[1.01]"
                   >
                     {t('billing.proButton')}
                   </Button>
@@ -223,7 +223,7 @@ export default function BillingView() {
             className="max-w-md mx-auto mt-4"
           >
             <Card className="p-6 relative overflow-hidden" animateHover={false}>
-              <div className="absolute top-0 left-0 w-full h-[3px] bg-accent-warm" />
+              <div className="accent-strip-bar rounded-t-xl" />
               
               <h3 className="font-sans text-xl sm:text-2xl text-text-primary mb-6 flex items-center gap-2 border-b border-border-light pb-4">
                 <CreditCard className="w-5 h-5 text-accent-warm" />
@@ -231,7 +231,7 @@ export default function BillingView() {
               </h3>
 
               {/* Glassmorphic Credit Card Widget */}
-              <div className="relative w-full h-44 rounded-md  from-[#0F172A] to-[#1E293B] border border-slate-700/60 p-5 text-white font-mono flex flex-col justify-between shadow-none mb-8 overflow-hidden">
+              <div className="relative w-full h-44 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-700/60 p-5 text-white font-mono flex flex-col justify-between shadow-antigravity mb-8 overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(232,147,91,0.06),transparent)] pointer-events-none" />
                 
                 {/* Chip and Logo */}
@@ -335,9 +335,9 @@ export default function BillingView() {
                   </Button>
                   <Button
                     type="submit"
-                    variant="primary"
+                    variant="accent"
                     disabled={loading || success}
-                    className="flex-1 bg-accent-warm text-white border-none shadow-none font-mono text-xs uppercase font-bold tracking-wider relative flex items-center justify-center min-h-[40px]"
+                    className="flex-1 font-mono text-xs uppercase font-bold tracking-wider relative flex items-center justify-center min-h-[40px]"
                   >
                     {loading ? (
                       <div className="w-5 h-5 rounded-full border-[2px] border-white/30 border-t-white animate-spin" />
