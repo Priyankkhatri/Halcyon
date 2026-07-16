@@ -820,7 +820,8 @@ async def generate_synthetic_crash_log(
         # Clean up any accidental markdown
         cleaned = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
         cleaned = re.sub(r"\n```$", "", cleaned).strip()
-        if cleaned.upper() == "CLEAN":
+        cleaned_upper = cleaned.upper().strip()
+        if "CLEAN" in cleaned_upper and len(cleaned_upper) < 50:
             logger.info("Commit classified as CLEAN by LLM. No incident generated.")
             return "CLEAN"
         return cleaned
