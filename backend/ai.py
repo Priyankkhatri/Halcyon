@@ -792,9 +792,12 @@ async def generate_synthetic_crash_log(
                 res_data = response.json()
                 raw_text = res_data["choices"][0]["message"]["content"]
         except Exception as exc:
-            logger.error("Failed to generate synthetic crash log using Ollama: %s", exc)
-            return None
-    elif _groq_client is not None:
+            logger.error(
+                "Failed to generate synthetic crash log using Ollama: %s — falling back to Groq.", exc
+            )
+            raw_text = ""
+
+    if not raw_text and _groq_client is not None:
         try:
             response = await asyncio.to_thread(
                 _groq_client.chat.completions.create,
@@ -810,8 +813,9 @@ async def generate_synthetic_crash_log(
         except Exception as exc:
             logger.error("Failed to generate synthetic crash log using Groq: %s", exc)
             return None
-    else:
-        logger.warning("No LLM available (Ollama off, no Groq key) for diff analysis.")
+
+    if not raw_text:
+        logger.warning("No LLM available or all providers failed for diff analysis.")
         return None
 
     try:
