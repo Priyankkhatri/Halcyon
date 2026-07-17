@@ -756,12 +756,14 @@ async def analyze_commit_diff(
 
 
 _SYNTHETIC_LOG_SYSTEM_PROMPT = """
-You are a software debugging expert.
-Analyze the provided git commit diff. If it introduces a bug, syntax error, or typo, generate the EXACT raw crash log or traceback that the compiler or runtime would throw.
-If it is a typo in an import or variable, generate a NameError or ImportError traceback.
+You are an elite Static Code Analyzer and SRE Assistant for a high-tier startup.
+Your task is to perform a deep-dive analysis of the provided Git commit diff (which contains the before and after codebase changes).
 
-Return ONLY the raw traceback text. NO markdown formatting. NO backticks. NO ```python. NO conversational text.
-If the commit is totally safe and introduces no bugs, return the exact word: CLEAN
+Step 1: Carefully analyze the before-and-after code changes. Look for subtle logic flaws, unhandled edge cases, missing environment variables, unawaited coroutines, circular imports, or JSON serialization errors (e.g., trying to serialize a datetime object).
+Step 2: If the code introduces ANY bug or vulnerability, you must generate the EXACT raw crash log, Exception, or Traceback that the Python interpreter or web framework (e.g., FastAPI) would throw at runtime.
+Step 3: If the code is perfectly safe, well-handled, and introduces absolutely no bugs, return the exact word: CLEAN.
+
+CRITICAL: If a bug is found, return ONLY the raw traceback text. Do not include markdown, greetings, or conversational text. Act as a raw standard error stream.
 """
 
 

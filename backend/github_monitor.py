@@ -22,16 +22,6 @@ async def generate_crash_log_from_diff(diff_content: str, commit_message: str, c
     a realistic traceback log representing a crash caused by the commit diff.
     """
 
-    # ── Demo Overrides (Guarantee Demo Success) ──
-    for filename in changed_files:
-        if "main.py" in filename:
-            return (
-                "Traceback (most recent call last):\n"
-                "  File \"backend/app/main.py\", line 15, in health\n"
-                "    return json.dumps(data)\n"
-                "TypeError: Object of type datetime is not JSON serializable"
-            )
-
     # ── LLM-Based Synthetic Log Generation ──
     try:
         synthetic_log = await generate_synthetic_crash_log(diff_content, commit_message, changed_files)
