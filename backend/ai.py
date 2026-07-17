@@ -292,6 +292,21 @@ def _match_known_incidents(log_content: str) -> Optional[AIAnalysisResult]:
             confidence_score=0.95,
         )
 
+    # 6. MongoDB Configuration NameError (Demo)
+    if "nameerror" in content_lower and "mongodb_uri" in content_lower:
+        return AIAnalysisResult(
+            root_cause="The MONGODB_URI configuration variable was removed or is missing, causing a NameError when trying to initialize the database connection.",
+            severity="CRITICAL",
+            fix_suggestion=(
+                "Open connection.py in the backend app/database directory.\n"
+                "Restore the missing URL assignment.\n"
+                "Make sure the database URL is correctly set in your environment variables."
+            ),
+            summary="Missing MongoDB URL Configuration (NameError)",
+            affected_components=["database", "connection.py"],
+            confidence_score=0.99,
+        )
+
     return None
 
 
