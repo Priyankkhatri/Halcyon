@@ -31,48 +31,10 @@ async def generate_crash_log_from_diff(diff_content: str, commit_message: str, c
             logger.info("Successfully generated synthetic crash log using LLM.")
             return synthetic_log
     except Exception as e:
-        logger.warning(f"Failed to generate synthetic crash log using LLM: {e}. Falling back to rule-based.")
-
-    # ── Rule-Based Traceback Generator (Fallback / Mock Mode) ──
-    # If the user changed connection.py (as in the screenshot), generate the NameError
-    for filename in changed_files:
-        if "connection.py" in filename:
-            return (
-                "Traceback (most recent call last):\n"
-                "  File \"backend/app/database/connection.py\", line 5, in <module>\n"
-                "    load_dotenv()\n"
-                "NameError: name 'load_dotenv' is not defined"
-            )
-
-    # Only generate mock tracebacks if the commit message suggests a bug, fix, or database issue
-    msg_lower = commit_message.lower()
-    has_bug_keyword = any(kw in msg_lower for kw in ["bug", "fix", "error", "fail", "break", "issue", "crash", "db", "database", "mongo", "timeout", "null", "none"])
-
-    if not has_bug_keyword:
-        logger.info(f"Commit '{commit_message}' classified as clean. No incident generated.")
+        logger.warning(f"Failed to generate synthetic crash log using LLM: {e}.")
         return None
 
-    if "db" in msg_lower or "database" in msg_lower or "mongo" in msg_lower:
-        return (
-            "2026-07-13 15:48:12 [ERROR] Database connection failed\n"
-            "pymongo.errors.ServerSelectionTimeoutError: localhost:27017: [Errno 111] Connection refused"
-        )
-    if "null" in msg_lower or "none" in msg_lower or "type" in msg_lower:
-        return (
-            "Traceback (most recent call last):\n"
-            "  File \"app.py\", line 42, in process_event\n"
-            "    result = handler(event)\n"
-            "TypeError: 'NoneType' object is not callable"
-        )
-    
-    # Standard Python traceback as fallback for other bug keywords
-    file_name = changed_files[0] if changed_files else "app.py"
-    return (
-        f"Traceback (most recent call last):\n"
-        f"  File \"{file_name}\", line 87, in run_service\n"
-        f"    config = load_config()\n"
-        f"KeyError: 'database_url'"
-    )
+    return None
 
 async def check_connection_for_new_commits(connection: GitHubConnection, db) -> None:
     """Fetches new commits and triggers incidents automatically for bugs."""
