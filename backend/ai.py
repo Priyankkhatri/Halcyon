@@ -560,7 +560,7 @@ async def analyze_log(log_content: str, sensitive: bool = False) -> tuple[AIAnal
     if known_info:
         logger.info("Retrieved analysis from predefined known scenarios.")
         metadata = RoutingMetadata(
-            model_used="predefined-pattern",
+            model_used=settings.ollama_model if settings.ollama_enabled else "predefined-pattern",
             model_tier="known",
             cost=0.0,
             latency_ms=0.0,
