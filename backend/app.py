@@ -26,21 +26,30 @@ logging.basicConfig(
 logger = logging.getLogger("halcyon")
 
 
-async def keep_hf_space_alive():
-    """Background task to ping the Hugging Face Space every 10 mins to prevent cold starts."""
+async def keep_model_endpoint_alive():
+    """Ping the self-hosted model endpoint every 5 mins to prevent idle disconnects
+    (Colab idle reclaim, HF Space sleep, ngrok tunnel timeouts)."""
     import httpx
     while True:
-        if settings.ollama_enabled and "hf.space" in settings.ollama_url:
+        if settings.ollama_enabled and settings.ollama_url:
+            base = settings.ollama_url.rstrip("/").removesuffix("/v1")
+            headers = {"ngrok-skip-browser-warning": "true"}
+            if settings.ollama_token:
+                headers["Authorization"] = f"Bearer {settings.ollama_token}"
             try:
-                # The ollama_url is usually the /v1 endpoint, we can ping the root or /v1/models
-                url_to_ping = settings.ollama_url.replace("/v1", "")
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    await client.get(url_to_ping)
-                    logger.debug("Pinged Hugging Face Space to keep it awake: %s", url_to_ping)
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.get(f"{base}/api/tags", headers=headers)
+                    if resp.status_code == 200:
+                        logger.debug("Model endpoint keep-alive OK: %s", base)
+                    else:
+                        logger.warning(
+                            "Model endpoint keep-alive got HTTP %s from %s — tunnel may be down.",
+                            resp.status_code, base,
+                        )
             except Exception as e:
-                logger.warning("Failed to ping Hugging Face Space: %s", e)
-        
-        await asyncio.sleep(600)  # Sleep for 10 minutes
+                logger.warning("Model endpoint keep-alive failed (%s): %s", base, e)
+
+        await asyncio.sleep(300)  # 5 minutes
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
@@ -64,8 +73,8 @@ async def lifespan(app: FastAPI):
     from github_monitor import github_polling_loop
     polling_task = asyncio.create_task(github_polling_loop())
     
-    # Start Hugging Face Space keep-alive task
-    keepalive_task = asyncio.create_task(keep_hf_space_alive())
+    # Start model endpoint keep-alive task
+    keepalive_task = asyncio.create_task(keep_model_endpoint_alive())
     
     yield
     
