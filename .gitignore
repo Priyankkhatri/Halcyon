@@ -51,3 +51,5 @@ vercel.json
 render.yaml
 deploy_render.py
 banner.svg
+.claude/
+Halcyon_Cloud_Server.ipynb
